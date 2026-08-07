@@ -187,11 +187,19 @@ eventis/
 
 ## 8. Rôles
 
-| Rôle | Personne | Périmètre |
-|---|---|---|
-| Scrum Master | Cheikh Ahmed Tijani Traoré | Infrastructure, CI/CD, VPS, Dokploy, passerelle, documentation, pilotage |
-| Paire A | voir `knowledge-base/scrum/equipe.md` | Les 4 microservices backend |
-| Paire B | voir `knowledge-base/scrum/equipe.md` | Frontend Vue et l'ensemble des tests |
+Découpage en tranches verticales : chaque développeur possède un service backend
+**et** les écrans qui le consomment.
+
+| Personne | Rôle | Périmètre | Étiquette |
+|---|---|---|---|
+| Cheikh Ahmed Tijani Traoré | Scrum Master | Infrastructure, CI/CD, VPS, Dokploy, passerelle, documentation, pilotage, revue de toutes les PR | `resp:sm` |
+| Alpha Abdoulaye LANSAR | Développeur | `auth-service`, socle frontend, écrans Connexion et Inscription, Vitest, Playwright | `resp:alpha` |
+| Kassem Dehou Modeste | Développeur | `events-service` et les écrans Événements | `resp:kassem` |
+| Mamadou Seydou Soumountera | Développeur | `participants-service` et les écrans Participants | `resp:mamadou` |
+| BAH Thierno Madjou | Développeur | `registrations-service` et les écrans Inscriptions et Tableau de bord | `resp:thierno` |
+
+Règle : on ne corrige pas le service d'un autre. Un écart avec le contrat d'API
+ouvre une issue `bug` assignée au propriétaire du service.
 
 Détail complet dans `knowledge-base/scrum/repartition-taches.md`.
 

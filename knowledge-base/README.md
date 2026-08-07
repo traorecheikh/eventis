@@ -15,7 +15,8 @@ l'extérieur, ce dossier s'adresse à l'équipe.
 | [api/registrations-service.md](api/registrations-service.md) | Inscription, annulation, statistiques |
 
 Ces quatre fichiers sont **figés**. Les modifier exige une PR approuvée par le Scrum
-Master. Ils permettent à la Paire B de développer sans attendre la Paire A.
+Master. Ils permettent à chacun de développer ses écrans sans attendre le service
+d'un voisin.
 
 ### Architecture
 

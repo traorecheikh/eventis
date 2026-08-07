@@ -1,135 +1,139 @@
 # Répartition des tâches, Équipe 7
 
-Document de référence du découpage du travail. Les noms des paires se trouvent dans
-`equipe.md` et nulle part ailleurs.
+Document de référence du découpage du travail. Toute issue GitHub porte une
+étiquette `resp:<personne>` qui renvoie à ce document.
 
-## Principe de découpage
+## Principe de découpage : tranches verticales
 
-Deux paires, un électron libre.
+Chaque développeur possède **un service backend et les écrans qui le consomment**.
+Personne ne fait uniquement du backend ou uniquement du frontend.
 
-| Entité | Périmètre | Justification |
-|---|---|---|
-| **Paire A** | Les 4 microservices backend | Le backend est un tout cohérent : les quatre services partagent le même middleware d'authentification, la même enveloppe d'erreur, la même convention de mapping base vers API. Une seule paire garantit cette cohérence. |
-| **Paire B** | Frontend Vue 3 et l'ensemble des tests | La paire qui écrit les tests est celle qui consomme les API. Elle détecte les écarts entre le contrat et l'implémentation, ce qui en fait un contre-pouvoir utile face à la Paire A. |
-| **Scrum Master** | Infrastructure, CI/CD, documentation, pilotage | La partie la plus lourdement notée dans un examen DevOps reste sous contrôle direct. |
+| Qui | Service backend | Écrans frontend | Étiquette |
+|---|---|---|---|
+| **Alpha Abdoulaye LANSAR** | `auth-service` | Socle frontend, Connexion, Inscription | `resp:alpha` |
+| **Kassem Dehou Modeste** | `events-service` | Liste, détail et création d'événement | `resp:kassem` |
+| **Mamadou Seydou Soumountera** | `participants-service` | Gestion et recherche de participants | `resp:mamadou` |
+| **BAH Thierno Madjou** | `registrations-service` | Inscription en un clic, mes inscriptions, tableau de bord | `resp:thierno` |
+| **Cheikh Ahmed Tijani Traoré** | Aucun | Aucun | `resp:sm` |
+
+### Pourquoi ce découpage
+
+- Chaque membre traverse toute la chaîne : base de données, API REST, conteneur,
+  interface. Devant un jury, personne ne se retrouve incapable d'expliquer une
+  partie du système.
+- Les frontières entre personnes coïncident avec les frontières entre
+  microservices. Deux personnes se marchent rarement dessus dans le même fichier.
+- Un retard sur un service ne bloque que ses propres écrans, pas toute l'interface.
 
 ### Le risque de ce découpage, et sa parade
 
-La Paire B est structurellement bloquée tant que la Paire A n'a pas livré. C'est le
-défaut principal de ce modèle, et il est assumé.
+Alpha porte le **socle frontend** dont dépendent les trois autres : configuration
+Vite, Vue Router, store Pinia de session, client axios avec intercepteur, mise en
+page commune. Tant que ce socle n'existe pas, les trois autres ne peuvent pas
+brancher leurs pages.
 
-**Parade appliquée dès le jour 1 :** les quatre contrats d'API sont figés avant
-toute ligne de code, dans `knowledge-base/api/`. Ils contiennent les routes, les
-codes de retour, les exemples JSON complets de requête et de réponse. La Paire B
-développe contre un bouchon alimenté par ces exemples et branche les vraies URL plus
-tard. Elle n'attend personne.
+**Parade.** Le socle est la toute première tâche du projet, planifiée le 06 août au
+matin, avant même `auth-service`. Le Scrum Master vérifie sa livraison au standup du
+07 août. En cas de retard, il le termine lui-même.
 
-Le Scrum Master vérifie chaque jour, au standup, que la Paire B n'est pas en attente.
-Si elle l'est, c'est un blocage à traiter le jour même.
-
----
-
-## Paire A : les 4 microservices backend
-
-### Livrables
-
-| Service | Contenu |
-|---|---|
-| `events-service` | CRUD complet, filtres par date et lieu, route `/availability` qui appelle registrations-service |
-| `participants-service` | CRUD complet, recherche par email et par nom, contrainte d'unicité sur l'email |
-| `registrations-service` | Inscription avec la séquence de vérification en 5 étapes, annulation logique, statistiques agrégées |
-| `auth-service` | Inscription, connexion, `/me`, hachage bcrypt, émission et vérification JWT |
-
-### Transverse à la Paire A
-
-- Middleware `requireAuth` et `requireRole`, dupliqué à l'identique dans les 4 services.
-- Enveloppe d'erreur commune : `{ error, message, details }`.
-- Route `GET /health` dans chaque service, avec vérification de la connexion PostgreSQL.
-- Annotations `swagger-jsdoc` sur chaque route, exposées sur `/docs`.
-- Scripts SQL de création de schéma et de données de démonstration.
-
-### Ordre de travail imposé
-
-L'ordre n'est pas libre : `registrations-service` dépend des deux autres.
-
-1. `auth-service` en premier. Sans lui, aucune route protégée n'est testable.
-2. `events-service` et `participants-service` en parallèle au sein de la paire.
-3. `registrations-service` en dernier, une fois ses deux dépendances joignables.
-
-### Ce que la Paire A ne fait pas
-
-Elle n'écrit ni les Dockerfiles, ni les tests. Elle fournit un service qui démarre
-avec `npm start` et une variable `DATABASE_URL`. Le reste est pris en charge par le
-Scrum Master et la Paire B.
+Second point : les contrats d'API sont figés dans `knowledge-base/api/` avant toute
+ligne de code. Chacun développe ses écrans contre le contrat et un bouchon local,
+sans attendre l'implémentation d'un voisin.
 
 ---
 
-## Paire B : frontend et tests
+## Alpha Abdoulaye LANSAR
 
-### Frontend Vue 3
-
-| Écran | Contenu |
+| Bloc | Contenu |
 |---|---|
-| Connexion et inscription | Formulaires, appel à auth-service, stockage du jeton |
-| Liste des événements | Cartes, filtres par date et par lieu, pagination, badge de places restantes |
-| Détail d'un événement | Informations complètes, bouton d'inscription, liste des inscrits pour un organisateur |
-| Création et édition d'événement | Formulaire réservé au rôle organisateur |
-| Liste des participants | Tableau, recherche par nom ou email |
-| Mes inscriptions | Événements du participant connecté, bouton d'annulation |
-| Tableau de bord | Statistiques globales, exigence du sujet |
+| Backend | `auth-service` : inscription, connexion, `/me`, `/verify`, hachage bcrypt, émission et vérification JWT |
+| Transverse backend | Middleware `requireAuth` et `requireRole`, à fournir aux trois autres pour duplication dans leurs services |
+| Socle frontend | Projet Vite, Vue Router avec garde d'authentification, store Pinia de session, client axios avec intercepteur `401`, mise en page commune |
+| Écrans | Connexion, création de compte |
+| Tests | Vitest sur les composants et les stores, Playwright sur le parcours de bout en bout |
 
-Technique : Vue Router avec garde d'authentification, Pinia pour l'état de session,
-client axios centralisé avec intercepteur qui injecte le jeton et redirige vers la
-page de connexion sur `401`.
+Issues : US-01 à US-05, US-43, US-44.
 
-### Tests
-
-| Type | Outil | Portée |
-|---|---|---|
-| Unitaires backend | Jest | Logique métier : calcul de places restantes, validation d'email, séquence de vérification d'inscription, signature et vérification JWT |
-| Intégration backend | Supertest | Chaque route de chaque service, tous les codes de retour documentés dans les contrats |
-| Unitaires frontend | Vitest | Composants et stores Pinia |
-| Bout en bout | Playwright | Parcours complet : inscription d'un compte, connexion, création d'un événement, inscription à cet événement, vérification de la décrémentation des places |
-
-Le seuil de couverture est fixé à 60 pour cent de lignes sur le backend. En dessous,
-la CI échoue.
-
-### Ce que la Paire B ne fait pas
-
-Elle n'écrit pas le code métier des services. Si un test révèle un écart avec le
-contrat d'API, elle ouvre une issue étiquetée `bug` assignée à la Paire A. Elle ne
-corrige pas le backend elle-même : cela masquerait le problème au lieu de le tracer.
+**Priorité absolue du 06 août : le socle frontend.** Les trois autres en dépendent.
 
 ---
 
-## Scrum Master : infrastructure et pilotage
+## Kassem Dehou Modeste
 
-### Infrastructure
-
-| Élément | Détail |
+| Bloc | Contenu |
 |---|---|
-| Dockerfiles | 5 fichiers : 4 services Node en multi-stage sur `node:24-alpine`, 1 frontend en build Vite puis nginx |
-| `docker-compose.yml` | 10 services, 2 réseaux, 4 volumes nommés, healthcheck partout, limites mémoire |
-| Passerelle Nginx | Sert le build Vue, proxifie les 4 préfixes `/api/*`, en-têtes de sécurité |
-| VPS | Achat Contabo VPS S, durcissement SSH, pare-feu, installation Dokploy |
-| Domaine | Achat de `eventis.xyz`, enregistrements DNS, TLS Let's Encrypt via Traefik |
-| Monitoring | Conteneur Uptime Kuma, sondes sur les 5 routes `/health` |
+| Backend | `events-service` : CRUD, filtres par date et par lieu, pagination, route `/availability` appelant `registrations-service` |
+| Base | Table `events`, index sur `date` et sur `location` |
+| Écrans | Liste des événements avec filtres, détail d'un événement, formulaire de création et d'édition |
+| Tests | Jest et Supertest sur `events-service` |
 
-### CI/CD
+Issues : US-06 à US-14.
 
-Sept étapes exigées par le sujet, détaillées dans `../specs/pipeline-ci-cd.md` :
-checkout, setup Node, tests, build, build des images Docker, push vers GHCR, deploy
-via le webhook Dokploy. S'y ajoutent les jobs lint, Trivy, `npm audit`, CodeQL et
-Semgrep.
+Point délicat : `/availability` interroge `registrations-service`, qui interroge
+lui-même `events-service`. Timeout strict de 3 secondes, et `503` si le service
+amont ne répond pas. Jamais de valeur optimiste par défaut.
 
-### Pilotage
+---
 
-Toutes les tâches listées dans `equipe.md`, section "Toutes les tâches du Scrum Master".
+## Mamadou Seydou Soumountera
 
-### Documentation
+| Bloc | Contenu |
+|---|---|
+| Backend | `participants-service` : CRUD, recherche par email et par nom, unicité de l'email |
+| Base | Table `participants`, contrainte `CHECK` sur `type`, index sur `LOWER(name)` |
+| Écrans | Tableau de gestion des participants, champ de recherche |
+| Tests | Jest et Supertest sur `participants-service` |
 
-`README.md`, base de connaissances complète, rapport LaTeX, diagrammes, vidéo de
-démonstration de secours.
+Issues : US-15 à US-20.
+
+Point délicat : `GET /participants/:id` est appelé par `registrations-service` avant
+chaque inscription. Ce point d'entrée doit rester rapide et stable.
+
+---
+
+## BAH Thierno Madjou
+
+| Bloc | Contenu |
+|---|---|
+| Backend | `registrations-service` : inscription avec la séquence de vérification en 5 étapes, annulation logique, statistiques agrégées |
+| Base | Table `registrations`, index unique partiel sur `(event_id, participant_id)` filtré sur `status = 'confirmee'` |
+| Écrans | Bouton d'inscription sur le détail d'un événement, mes inscriptions, tableau de bord des statistiques |
+| Tests | Jest et Supertest sur `registrations-service` |
+
+Issues : US-21 à US-29.
+
+C'est le service le plus complexe du projet : le seul qui appelle deux autres
+services avant d'écrire en base. Il est planifié en dernier, une fois
+`events-service` et `participants-service` joignables.
+
+---
+
+## Cheikh Ahmed Tijani Traoré, Scrum Master
+
+| Bloc | Contenu |
+|---|---|
+| Conteneurisation | 5 Dockerfiles multi-étapes, `docker-compose.yml`, 2 réseaux, 4 volumes, healthchecks, limites mémoire |
+| Passerelle | Configuration Nginx : service du build Vue et proxy des 4 préfixes `/api/*` |
+| CI/CD | `ci.yml`, `cd.yml`, `security.yml`, publication sur GHCR, webhook Dokploy |
+| Infrastructure | Achat et durcissement du VPS Contabo, installation de Dokploy, domaine `eventis.xyz`, TLS, Uptime Kuma |
+| Documentation | `README.md`, base de connaissances, rapport LaTeX, diagrammes, vidéo de secours |
+| Pilotage | Toutes les tâches listées dans `equipe.md`, section "Toutes les tâches du Scrum Master" |
+| Revue | Relecture et approbation de **toutes** les Pull Requests |
+
+Issues : US-30 à US-40, US-45 à US-50.
+
+---
+
+## Travail commun
+
+| Issue | Contenu |
+|---|---|
+| US-41 | Tests unitaires Jest : chaque développeur couvre son propre service |
+| US-42 | Tests d'intégration Supertest : chaque développeur couvre ses propres routes |
+
+Règle : si un test révèle un écart entre le code et le contrat d'API, on ouvre une
+issue étiquetée `bug` assignée au propriétaire du service. On ne corrige pas le
+service d'un autre en silence, cela masquerait le problème au lieu de le tracer.
 
 ---
 
@@ -137,20 +141,23 @@ démonstration de secours.
 
 R = Réalise, A = Approuve, C = Consulté, I = Informé.
 
-| Activité | Paire A | Paire B | Scrum Master |
-|---|---|---|---|
-| Contrats d'API | C | C | R, A |
-| Code des 4 services | R | C | A |
-| Frontend Vue | I | R | A |
-| Tests unitaires et intégration | C | R | A |
-| Tests bout en bout | I | R | A |
-| Dockerfiles | C | C | R, A |
-| docker-compose | I | I | R, A |
-| Pipeline CI/CD | I | C | R, A |
-| VPS, Dokploy, domaine | I | I | R, A |
-| README et rapport | C | C | R, A |
-| Revue de toutes les PR | C | C | R, A |
-| Board et cérémonies | I | I | R, A |
+| Activité | Alpha | Kassem | Mamadou | Thierno | Scrum Master |
+|---|---|---|---|---|---|
+| Contrats d'API | C | C | C | C | R, A |
+| auth-service | R | I | I | I | A |
+| events-service | I | R | I | C | A |
+| participants-service | I | I | R | C | A |
+| registrations-service | I | C | C | R | A |
+| Socle frontend | R | C | C | C | A |
+| Écrans métier | I | R | R | R | A |
+| Tests unitaires et intégration | R | R | R | R | A |
+| Tests Vitest et Playwright | R | I | I | I | A |
+| Dockerfiles et compose | C | C | C | C | R, A |
+| Pipeline CI/CD | I | I | I | I | R, A |
+| VPS, Dokploy, domaine | I | I | I | I | R, A |
+| README et rapport | C | C | C | C | R, A |
+| Revue des PR | C | C | C | C | R, A |
+| Board et cérémonies | I | I | I | I | R, A |
 
 ---
 
@@ -158,12 +165,19 @@ R = Réalise, A = Approuve, C = Consulté, I = Informé.
 
 Sur 11 jours, du 06 au 17 août 2026.
 
-| Entité | Estimation | Commentaire |
+| Qui | Points engagés | Commentaire |
 |---|---|---|
-| Paire A | 4 services, environ 25 routes | Le plus gros volume de code |
-| Paire B | 7 écrans + 4 suites de tests | Charge comparable, étalée différemment |
-| Scrum Master | Infra + docs + pilotage | Charge continue, pics au jour 1, au jour 5 et au jour 10 |
+| Alpha LANSAR | 22 | `auth-service` est petit, mais le socle frontend est structurant et bloquant |
+| Kassem Modeste | 25 | Volume le plus régulier, sans dépendance forte |
+| Mamadou Soumountera | 12 | Le plus léger. Renfort attendu sur les tests d'intégration. |
+| Thierno BAH | 32 | Le service le plus complexe et trois écrans |
+| Scrum Master | 62 | Infrastructure, CI/CD, documentation et pilotage |
 
-Aucune entité ne peut absorber le retard d'une autre. Un retard se traite en
-réduisant le périmètre des bonus, jamais en transférant du travail : voir
-`risques.md`.
+L'écart entre Mamadou et Thierno est assumé : `registrations-service` concentre la
+complexité métier. Si Thierno prend du retard au jour 5, Mamadou reprend les écrans
+US-28 et US-29. Cette bascule est prévue et n'a pas à être renégociée en cours de
+sprint.
+
+Aucune personne ne peut absorber le retard d'une autre sur son propre service. Un
+retard se traite en réduisant le périmètre des bonus P2, jamais en transférant du
+travail vers quelqu'un qui ne connaît pas le contexte. Voir `risques.md`.

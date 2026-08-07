@@ -15,7 +15,7 @@
 | Points réalisés | |
 | Objectif de sprint atteint | oui / non |
 | Nombre de PR mergées | |
-| Nombre de bugs ouverts par la Paire B | |
+| Nombre d'issues bug ouvertes | |
 
 ## Start : ce qu'on commence à faire
 

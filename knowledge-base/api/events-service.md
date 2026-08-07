@@ -9,7 +9,7 @@ approuvée par le Scrum Master, avant toute modification de code.
 | Préfixe via la passerelle | `/api/events` |
 | Base de données | `events-db` (PostgreSQL 16, base `events`) |
 | Documentation live | `/api/events/docs` (Swagger UI) |
-| Propriétaire | Paire A |
+| Propriétaire | Kassem Dehou Modeste |
 
 ---
 
@@ -229,9 +229,9 @@ Codes `error` utilisés : `VALIDATION_ERROR`, `NOT_FOUND`, `UNAUTHORIZED`,
 
 ---
 
-## Ce que la Paire B peut coder immédiatement
+## Ce qui peut être codé immédiatement
 
-Le contrat ci-dessus est figé. La Paire B développe le client axios et les pages Vue
-contre ces formes de réponse sans attendre l'implémentation. En attendant le service
-réel, elle utilise un bouchon local (`msw` ou un simple `json-server`) alimenté par
-les exemples JSON de ce document.
+Le contrat ci-dessus est figé. Les écrans Événements se développent contre ces
+formes de réponse sans attendre l'implémentation du service. En attendant le service
+réel, utiliser un bouchon local (`msw` ou un simple `json-server`) alimenté par les
+exemples JSON de ce document.
