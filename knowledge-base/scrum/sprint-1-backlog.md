@@ -20,62 +20,86 @@ soit ça ne l'est pas.
 
 ## Contenu engagé
 
-### Paire A, 4 microservices
+### Alpha Abdoulaye LANSAR
 
-| ID | Story | Points |
-|---|---|---|
-| US-01 | Créer un compte | 3 |
-| US-02 | Se connecter | 3 |
-| US-04 | Vérification des jetons dans les 4 services | 3 |
-| US-06 | Créer un événement | 3 |
-| US-07 | Modifier un événement | 2 |
-| US-08 | Supprimer un événement | 1 |
-| US-09 | Lister les événements | 3 |
-| US-10 | Filtrer par date et lieu | 3 |
-| US-11 | Détail d'un événement | 2 |
-| US-12 | Places restantes | 5 |
-| US-15 | Créer un participant | 3 |
-| US-16 | Modifier un participant | 2 |
-| US-17 | Supprimer un participant | 1 |
-| US-18 | Lister les participants | 2 |
-| US-19 | Recherche par email ou nom | 3 |
-| US-21 | S'inscrire à un événement | 8 |
-| US-22 | Refus si complet | 5 |
-| US-23 | Refus de double inscription | 3 |
-| US-24 | Annuler une inscription | 3 |
-| US-25 | Lister les inscrits | 3 |
-| US-26 | Voir ses inscriptions | 2 |
-| US-27 | Statistiques d'inscription | 3 |
-| | **Sous-total** | **66** |
+Périmètre : auth-service, socle frontend, ecrans de connexion.
 
-### Paire B, frontend et premiers tests
+| ID | Story | Points | Priorité |
+|---|---|---|---|
+| US-01 | Creer un compte | 3 | P0 |
+| US-02 | Se connecter | 3 | P0 |
+| US-04 | Verifier les jetons dans les 4 services | 3 | P0 |
+| | **Sous-total** | **9** | |
 
-| ID | Story | Points |
-|---|---|---|
-| US-13 | Formulaire de création d'événement | 3 |
-| US-14 | Liste d'événements avec filtres | 5 |
-| US-20 | Écran de gestion des participants | 3 |
-| US-28 | Inscription en un clic | 3 |
-| US-41 | Tests unitaires Jest sur les 4 services | 8 |
-| | **Sous-total** | **22** |
+### Kassem Dehou Modeste
 
-### Scrum Master, infrastructure
+Périmètre : events-service et les ecrans Evenements.
 
-| ID | Story | Points |
-|---|---|---|
-| US-30 | Un Dockerfile par service | 5 |
-| US-31 | `docker compose up` lance la plateforme | 8 |
-| US-32 | Volumes persistants | 2 |
-| US-35 | Tests à chaque push | 3 |
-| US-37 | Images publiées sur GHCR | 5 |
-| US-38 | Déploiement automatique sur merge vers `main` | 5 |
-| | **Sous-total** | **28** |
+| ID | Story | Points | Priorité |
+|---|---|---|---|
+| US-06 | Creer un evenement | 3 | P0 |
+| US-07 | Modifier un evenement | 2 | P0 |
+| US-08 | Supprimer un evenement | 1 | P0 |
+| US-09 | Lister les evenements | 3 | P0 |
+| US-10 | Filtrer les evenements par date et par lieu | 3 | P0 |
+| US-11 | Voir le detail d un evenement | 2 | P0 |
+| US-12 | Connaitre les places restantes | 5 | P0 |
+| US-13 | Formulaire de creation d evenement | 3 | P0 |
+| US-14 | Liste d evenements avec filtres | 5 | P0 |
+| | **Sous-total** | **27** | |
 
-Tâches non estimées mais engagées : création du dépôt et des protections, achat du
-VPS et du domaine, installation de Dokploy, configuration Nginx, gel des contrats
-d'API, animation des cérémonies.
+### Mamadou Seydou Soumountera
 
----
+Périmètre : participants-service et les ecrans Participants.
+
+| ID | Story | Points | Priorité |
+|---|---|---|---|
+| US-15 | Creer un profil participant | 3 | P0 |
+| US-16 | Modifier un profil participant | 2 | P0 |
+| US-17 | Supprimer un participant | 1 | P0 |
+| US-18 | Lister les participants | 2 | P0 |
+| US-19 | Rechercher un participant par email ou par nom | 3 | P0 |
+| US-20 | Ecran de gestion des participants | 3 | P0 |
+| | **Sous-total** | **14** | |
+
+### BAH Thierno Madjou
+
+Périmètre : registrations-service et les ecrans Inscriptions.
+
+| ID | Story | Points | Priorité |
+|---|---|---|---|
+| US-21 | S inscrire a un evenement | 8 | P0 |
+| US-22 | Refuser l inscription si l evenement est complet | 5 | P0 |
+| US-23 | Refuser une double inscription | 3 | P0 |
+| US-24 | Annuler une inscription | 3 | P0 |
+| US-25 | Lister les inscrits d un evenement | 3 | P0 |
+| US-26 | Voir mes inscriptions | 2 | P0 |
+| US-27 | Statistiques d inscription | 3 | P0 |
+| US-28 | S inscrire en un clic depuis le detail | 3 | P0 |
+| | **Sous-total** | **30** | |
+
+### Cheikh Ahmed Tijani Traoré, Scrum Master
+
+Périmètre : conteneurisation, CI/CD, infrastructure, documentation.
+
+| ID | Story | Points | Priorité |
+|---|---|---|---|
+| US-30 | Un Dockerfile par service | 5 | P0 |
+| US-31 | Lancer la plateforme avec docker compose up | 8 | P0 |
+| US-32 | Volumes persistants pour les 4 bases | 2 | P0 |
+| US-35 | Lancer les tests a chaque push | 3 | P0 |
+| US-37 | Publier les images sur GHCR | 5 | P0 |
+| US-38 | Deployer automatiquement sur merge vers main | 5 | P0 |
+| | **Sous-total** | **28** | |
+
+### Travail commun
+
+Périmètre : chacun sur son propre service.
+
+| ID | Story | Points | Priorité |
+|---|---|---|---|
+| US-41 | Tests unitaires Jest sur les 4 services | 8 | P0 |
+| | **Sous-total** | **8** | |
 
 ## Hors périmètre de ce sprint
 
@@ -104,7 +128,7 @@ US-06 .. US-11  (events)     US-15 .. US-19  (participants)
 `registrations-service` ne peut pas être terminé avant que `events-service` et
 `participants-service` répondent. C'est pourquoi il est planifié au jour 5.
 
-La Paire B ne dépend d'aucune de ces stories grâce aux contrats figés et au bouchon.
+Personne ne dépend du service d'un autre pour démarrer, grâce aux contrats figés et aux bouchons locaux.
 
 ---
 

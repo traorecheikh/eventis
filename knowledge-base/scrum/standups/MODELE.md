@@ -4,15 +4,15 @@ Copier ce modèle en `AAAA-MM-JJ.md`. Recopie des messages WhatsApp par le Scrum
 
 | Membre | Fait hier | Prévu aujourd'hui | Blocage |
 |---|---|---|---|
-| PAIRE_A_1 | | | |
-| PAIRE_A_2 | | | |
-| PAIRE_B_1 | | | |
-| PAIRE_B_2 | | | |
+| Alpha LANSAR | | | |
+| Kassem Modeste | | | |
+| Mamadou Soumountera | | | |
+| Thierno BAH | | | |
 | Cheikh (SM) | | | |
 
 ## Blocages à traiter aujourd'hui
 
-## La Paire B attend-elle quelque chose de la Paire A
+## Quelqu'un attend-il une livraison d'un autre
 
 oui / non. Si oui, action décidée :
 

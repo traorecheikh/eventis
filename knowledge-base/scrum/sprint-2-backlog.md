@@ -4,7 +4,7 @@
 |---|---|
 | Période | 11 au 17 août 2026, 6 jours |
 | Objectif | Solidité, sécurité, documentation, livraison |
-| Capacité engagée | 54 points, plus les reports du Sprint 1 |
+| Capacité engagée | 62 points, plus les reports du Sprint 1 |
 
 ## Objectif de sprint
 
@@ -17,46 +17,54 @@
 
 ## Contenu engagé
 
-### Paire A
+### Alpha Abdoulaye LANSAR
 
-| ID | Story | Points |
-|---|---|---|
-| US-03 | Consulter son profil | 1 |
-| | Fiabilisation des appels inter-services : timeouts, réessai unique, journalisation | 5 |
-| | Swagger complet et vérifié sur les 4 services | 5 |
-| | Correction des bugs remontés par la Paire B | 8 |
-| | **Sous-total** | **19** |
+Périmètre : auth-service, socle frontend, ecrans de connexion.
 
-### Paire B
+| ID | Story | Points | Priorité |
+|---|---|---|---|
+| US-03 | Consulter son profil | 1 | P1 |
+| US-05 | Rediriger a l expiration de session | 2 | P1 |
+| US-43 | Tests Vitest sur les composants Vue | 5 | P2 |
+| US-44 | Test Playwright du parcours complet | 5 | P2 |
+| | **Sous-total** | **13** | |
 
-| ID | Story | Points |
-|---|---|---|
-| US-05 | Redirection à l'expiration de session | 2 |
-| US-29 | Tableau de bord de statistiques | 5 |
-| US-42 | Tests d'intégration Supertest | 8 |
-| US-43 | Tests Vitest sur les composants | 5 |
-| US-44 | Test Playwright du parcours complet | 5 |
-| US-45 | Couverture au-dessus de 60 pour cent avec badge | 3 |
-| | Finition visuelle des 7 écrans | 5 |
-| | **Sous-total** | **33** |
+### BAH Thierno Madjou
 
-### Scrum Master
+Périmètre : registrations-service et les ecrans Inscriptions.
 
-| ID | Story | Points |
-|---|---|---|
-| US-33 | Healthchecks affinés sur chaque conteneur | 3 |
-| US-34 | Bases non exposées publiquement, 2 réseaux | 2 |
-| US-36 | Lint bloquant en CI | 2 |
-| US-39 | Scan Trivy des images | 3 |
-| US-40 | CodeQL et Semgrep | 3 |
-| US-46 | README complet | 5 |
-| US-47 | Rapport PDF | 8 |
-| US-48 | Diagramme d'architecture détaillé | 3 |
-| US-49 | Uptime Kuma | 2 |
-| US-50 | Vidéo de démonstration | 2 |
-| | **Sous-total** | **33** |
+| ID | Story | Points | Priorité |
+|---|---|---|---|
+| US-29 | Tableau de bord des statistiques | 5 | P1 |
+| | **Sous-total** | **5** | |
 
----
+### Cheikh Ahmed Tijani Traoré, Scrum Master
+
+Périmètre : conteneurisation, CI/CD, infrastructure, documentation.
+
+| ID | Story | Points | Priorité |
+|---|---|---|---|
+| US-33 | Healthchecks sur chaque conteneur | 3 | P0 |
+| US-34 | Ne pas exposer les bases publiquement | 2 | P1 |
+| US-36 | Bloquer une PR non conforme au lint | 2 | P1 |
+| US-39 | Scanner les images avec Trivy | 3 | P2 |
+| US-40 | Analyser le code avec CodeQL et Semgrep | 3 | P2 |
+| US-45 | Couverture au dessus de 60 pour cent avec badge | 3 | P1 |
+| US-46 | README complet | 5 | P0 |
+| US-47 | Rapport PDF | 8 | P0 |
+| US-48 | Diagramme d architecture detaille | 3 | P0 |
+| US-49 | Supervision par Uptime Kuma | 2 | P2 |
+| US-50 | Video de demonstration de secours | 2 | P1 |
+| | **Sous-total** | **36** | |
+
+### Travail commun
+
+Périmètre : chacun sur son propre service.
+
+| ID | Story | Points | Priorité |
+|---|---|---|---|
+| US-42 | Tests d integration Supertest | 8 | P1 |
+| | **Sous-total** | **8** | |
 
 ## Ordre de sacrifice
 
@@ -89,7 +97,7 @@ Raison : un bug introduit le 16 août à 23 heures ne sera pas détecté avant l
 
 | Indicateur | Valeur |
 |---|---|
-| Points engagés | 85 |
+| Points engagés | 62 |
 | Points réalisés | |
 | Vélocité Sprint 1 | |
 | Vélocité Sprint 2 | |
