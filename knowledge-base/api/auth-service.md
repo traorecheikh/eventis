@@ -11,7 +11,7 @@ le service supplémentaire qui porte l'authentification JWT.
 | Préfixe via la passerelle | `/api/auth` |
 | Base de données | `auth-db` (PostgreSQL 16, base `auth`) |
 | Documentation live | `/api/auth/docs` |
-| Propriétaire | Paire A |
+| Propriétaire | Alpha Abdoulaye LANSAR |
 
 ---
 

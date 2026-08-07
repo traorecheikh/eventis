@@ -5,24 +5,28 @@ Criticité = gravité multipliée par probabilité.
 
 ---
 
-## R-01 : La Paire B est bloquée en attente du backend
+## R-01 : le socle frontend n'est pas livré, trois développeurs bloqués
 
 | Champ | Valeur |
 |---|---|
 | Gravité | 5 |
 | Probabilité | 4 |
 | Criticité | **20** |
-| Origine | Le découpage retenu place tout le backend chez une paire et tout le frontend chez l'autre |
+| Origine | Alpha porte seul le socle frontend (Vite, router, Pinia, client axios) dont dépendent les écrans des trois autres |
 
-**Parade appliquée.** Les quatre contrats d'API sont figés dans
-`knowledge-base/api/` avant toute ligne de code, avec des exemples JSON complets.
-La Paire B développe contre un bouchon local alimenté par ces exemples.
+**Parade appliquée.** Le socle frontend est la toute première tâche du projet,
+planifiée le 06 août au matin, avant même `auth-service`. En parallèle, les quatre
+contrats d'API sont figés dans `knowledge-base/api/` avec des exemples JSON complets,
+ce qui permet à chacun de développer ses écrans contre un bouchon local sans attendre
+le service d'un voisin.
 
-**Détection.** Question posée à chaque standup : "la Paire B attend-elle quelque
-chose ?" Toute réponse positive est un blocage traité le jour même.
+**Détection.** Question posée à chaque standup : "quelqu'un attend-il une livraison
+d'un autre ?" Toute réponse positive est un blocage traité le jour même. Le socle est
+vérifié explicitement au standup du 07 août.
 
-**Plan de repli.** Si le blocage persiste plus de 24 heures, le Scrum Master
-implémente lui-même la route manquante en version minimale.
+**Plan de repli.** Si le socle n'est pas livré le 07 août, le Scrum Master le termine
+lui-même. Si un service est en retard, son propriétaire livre d'abord les routes dont
+dépendent les autres, le reste ensuite.
 
 ---
 
@@ -75,15 +79,18 @@ Une ligne de YAML. À reconsidérer si le risque se matérialise une première f
 | Probabilité | 3 |
 | Criticité | **12** |
 
-**Parade.** Le travail en paires rend la charge partagée : si une personne décroche,
-son binôme connaît le contexte. Le Scrum Master détient la totalité de
-l'infrastructure et des livrables notés, qui ne dépendent de personne d'autre.
+**Parade.** Le découpage en tranches verticales isole la perte : un service absent
+ne bloque que ses propres écrans, pas le reste de l'application. Le Scrum Master
+détient la totalité de l'infrastructure et des trois livrables notés, qui ne
+dépendent de personne d'autre. Les contrats d'API figés permettent à quelqu'un
+d'autre de reprendre un service sans reverse engineering.
 
 **Détection.** Absence à deux standups consécutifs, ou aucune PR ouverte pendant
 48 heures.
 
-**Action.** Conversation directe, puis redistribution de la charge en réduisant le
-périmètre des bonus P2.
+**Action.** Conversation directe, puis redistribution. La bascule déjà prévue :
+Mamadou, le moins chargé avec 14 points, reprend en priorité. Le périmètre des bonus
+P2 est réduit en conséquence.
 
 ---
 
@@ -169,7 +176,7 @@ du code au 15 août libère deux journées entières pour la rédaction.
 
 | Risque | Criticité | Statut |
 |---|---|---|
-| R-01 Paire B bloquée | 20 | Parade active |
+| R-01 Socle frontend non livré | 20 | Parade active |
 | R-02 VPS indisponible | 15 | Parade active |
 | R-08 Rapport bâclé | 15 | Parade active |
 | R-03 Pas de retour arrière | 12 | Accepté, levée documentée |

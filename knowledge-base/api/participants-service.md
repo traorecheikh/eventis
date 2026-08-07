@@ -8,7 +8,7 @@
 | Préfixe via la passerelle | `/api/participants` |
 | Base de données | `participants-db` (PostgreSQL 16, base `participants`) |
 | Documentation live | `/api/participants/docs` |
-| Propriétaire | Paire A |
+| Propriétaire | Mamadou Seydou Soumountera |
 
 ---
 

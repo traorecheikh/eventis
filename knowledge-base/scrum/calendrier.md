@@ -24,34 +24,37 @@ Onze jours ouvrés à partir d'aujourd'hui.
 | Qui | Tâches |
 |---|---|
 | Scrum Master | Sprint Planning 1. Créer le dépôt GitHub, les branches `main` et `develop`, les protections, les templates. Figer les 4 contrats d'API. Créer le board GitHub Projects et les issues du sprint. Commander le VPS Contabo et le domaine `eventis.xyz`. |
-| Paire A | Prendre connaissance des contrats. Initialiser les 4 projets Node, structure de dossiers, `package.json`, connexion PostgreSQL, route `/health`. |
-| Paire B | Initialiser le projet Vue 3 + Vite, Vue Router, Pinia, client axios. Monter le bouchon d'API à partir des exemples JSON des contrats. |
+| Alpha | **Socle frontend en priorité** : projet Vite, Vue Router, Pinia, client axios, mise en page. Les trois autres en dépendent. |
+| Kassem, Mamadou, Thierno | Prendre connaissance des contrats. Initialiser leur projet Node : structure, `package.json`, connexion PostgreSQL, route `/health`. |
 
-Fin de journée : chaque paire a poussé au moins une PR sur `develop`.
+Fin de journée : chaque membre a poussé au moins une PR sur `develop`.
 
 ### Vendredi 07 août : squelettes qui tournent
 
 | Qui | Tâches |
 |---|---|
 | Scrum Master | Installer Dokploy sur le VPS. Pointer le DNS de `eventis.xyz`. Écrire les 5 Dockerfiles et le premier `docker-compose.yml`. Objectif : `docker compose up` démarre les 10 conteneurs en local. |
-| Paire A | `auth-service` complet : register, login, `/me`, bcrypt, JWT. C'est le prérequis de tout le reste. |
-| Paire B | Pages de connexion et d'inscription branchées sur le bouchon. Garde de route. Store de session Pinia. |
+| Alpha | `auth-service` complet : register, login, `/me`, bcrypt, JWT. Prérequis de toutes les routes protégées. Pages de connexion et d'inscription. |
+| Kassem, Mamadou, Thierno | Schémas SQL et premières routes CRUD de leur service, contre le contrat figé. |
 
 ### Samedi 08 et dimanche 09 août : le coeur métier
 
 | Qui | Tâches |
 |---|---|
 | Scrum Master | Premier workflow GitHub Actions : lint, tests, build. Configuration Nginx. Revue continue des PR. |
-| Paire A | `events-service` et `participants-service` complets : CRUD, filtres, recherche, Swagger. |
-| Paire B | Liste et détail des événements, formulaire de création, liste des participants. Premiers tests Jest et Supertest sur ce que la Paire A a livré. |
+| Kassem | `events-service` complet, puis ses écrans : liste avec filtres, détail, formulaire de création. |
+| Mamadou | `participants-service` complet, puis son écran de gestion et de recherche. |
+| Thierno | Schéma et premières routes de `registrations-service`, en attendant ses deux dépendances. |
+| Alpha | Middleware `requireAuth` fourni aux trois autres. Tests Jest sur `auth-service`. |
 
 ### Lundi 10 août : premier déploiement
 
 | Qui | Tâches |
 |---|---|
 | Scrum Master | Compléter le pipeline : build des images, push vers GHCR, appel du webhook Dokploy. **Objectif du jour : `https://eventis.xyz` répond.** |
-| Paire A | `registrations-service` : séquence de vérification en 5 étapes, annulation logique, statistiques. Route `/events/:id/availability` côté events-service. |
-| Paire B | Écran d'inscription à un événement, mes inscriptions, tableau de bord. Tests d'intégration sur les routes livrées. |
+| Thierno | `registrations-service` : séquence de vérification en 5 étapes, annulation logique, statistiques. Puis l'écran d'inscription en un clic. |
+| Kassem | Route `/events/:id/availability`, qui appelle `registrations-service`. |
+| Alpha, Mamadou | Tests Jest sur leur service. Finition de leurs écrans. |
 
 ### Mardi 11 août : clôture du Sprint 1
 
@@ -74,8 +77,8 @@ données réelles, l'application est joignable en HTTPS sur `eventis.xyz`.
 | Qui | Tâches |
 |---|---|
 | Scrum Master | Jobs Trivy, `npm audit`, CodeQL, Semgrep. Conteneur Uptime Kuma. Limites mémoire et healthchecks affinés. Rédaction du README. Diagrammes Mermaid et export PNG. |
-| Paire A | Appels inter-services fiabilisés : timeouts, réessai unique, journalisation. Swagger complet sur les 4 services. Correction des bugs remontés par la Paire B. |
-| Paire B | Playwright bout en bout sur le parcours complet. Vitest sur les composants. Montée de la couverture au-dessus de 60 pour cent. Finition visuelle des écrans. |
+| Kassem, Mamadou, Thierno | Appels inter-services fiabilisés : timeouts, réessai unique, journalisation. Swagger complet. Supertest sur leurs routes. |
+| Alpha | Playwright bout en bout sur le parcours complet. Vitest sur les composants. Cohérence visuelle des sept écrans. |
 
 ### Samedi 15 août : gel du code
 
@@ -112,7 +115,7 @@ Scrum Master le jour même.
 
 | Date | Jalon | Si non tenu |
 |---|---|---|
-| 06 août | Contrats d'API figés | La Paire B est bloquée. Priorité absolue. |
+| 06 août | Contrats d'API figés et socle frontend livré | Les trois développeurs de services sont bloqués côté écrans. Priorité absolue. |
 | 07 août | `docker compose up` fonctionne en local | Repousser les bonus, se concentrer sur la conteneurisation. |
 | 10 août | Application joignable en HTTPS | Abandonner Uptime Kuma et CodeQL, garder Trivy. |
 | 15 août | Gel du code | Abandonner Playwright, garder Jest et Supertest. |
