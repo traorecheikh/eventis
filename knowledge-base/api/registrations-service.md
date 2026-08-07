@@ -11,7 +11,7 @@ avant d'écrire en base.
 | Préfixe via la passerelle | `/api/registrations` |
 | Base de données | `registrations-db` (PostgreSQL 16, base `registrations`) |
 | Documentation live | `/api/registrations/docs` |
-| Propriétaire | Paire A |
+| Propriétaire | BAH Thierno Madjou |
 
 ---
 

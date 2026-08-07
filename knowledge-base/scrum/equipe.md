@@ -13,20 +13,28 @@ DEVOOPS.docx`.
 | 4 | Mamadou Seydou Soumountera | Développeur |
 | 5 | BAH Thierno Madjou | Développeur |
 
-## Paires de travail
+## Découpage du travail : tranches verticales
 
-> **À COMPLÉTER.** Le Scrum Master confirme la composition des paires avec les
-> membres, puis remplace les placeholders ci-dessous dans ce seul fichier.
-> Aucun autre document ne cite de nom de membre : tous renvoient ici.
+Chaque développeur possède un service backend et les écrans qui le consomment.
+Personne ne fait uniquement du backend ou uniquement du frontend.
 
-| Paire | Membres | Périmètre |
-|---|---|---|
-| **Paire A** | `PAIRE_A_1`, `PAIRE_A_2` | Les 4 microservices backend |
-| **Paire B** | `PAIRE_B_1`, `PAIRE_B_2` | Frontend Vue 3 et l'ensemble des tests |
-| Transverse | Cheikh Ahmed Tijani Traoré | Infrastructure, CI/CD, documentation, pilotage |
+| Membre | Service backend | Écrans frontend | Étiquette GitHub |
+|---|---|---|---|
+| Alpha Abdoulaye LANSAR | `auth-service` | Socle frontend, Connexion, Inscription | `resp:alpha` |
+| Kassem Dehou Modeste | `events-service` | Événements : liste, détail, création | `resp:kassem` |
+| Mamadou Seydou Soumountera | `participants-service` | Participants : gestion, recherche | `resp:mamadou` |
+| BAH Thierno Madjou | `registrations-service` | Inscriptions, tableau de bord | `resp:thierno` |
+| Cheikh Ahmed Tijani Traoré | Aucun | Aucun | `resp:sm` |
+
+Le détail complet, la matrice RACI et la charge estimée figurent dans
+[repartition-taches.md](repartition-taches.md).
 
 Les quatre développeurs sont à l'aise avec Node et Git. Aucun accompagnement pas à
 pas n'est prévu, seulement des contrats d'API figés et des conventions écrites.
+
+**Dépendance critique.** Alpha porte le socle frontend dont dépendent les trois
+autres. Il est planifié le 06 août au matin, avant `auth-service`. Sa livraison est
+vérifiée au standup du 07 août.
 
 ## Toutes les tâches du Scrum Master
 
