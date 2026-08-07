@@ -1,0 +1,67 @@
+# dépendances
+node_modules/
+.pnp
+.pnp.js
+
+# secrets
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# builds
+dist/
+build/
+.vite/
+*.tsbuildinfo
+
+# tests et couverture
+coverage/
+.nyc_output/
+playwright-report/
+test-results/
+blob-report/
+.playwright/
+
+# journaux
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# systèmes
+.DS_Store
+Thumbs.db
+
+# éditeurs
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+
+# docker
+docker-compose.override.yml
+
+# sauvegardes de bases
+*.sql.gz
+backups/
+
+# LaTeX
+rapport/*.aux
+rapport/*.log
+rapport/*.out
+rapport/*.toc
+rapport/*.synctex.gz
+rapport/*.fls
+rapport/*.fdb_latexmk
+
+# sujet de l'examen, non redistribué
+*.pdf
+!rapport/rapport-eventhub.pdf
+
+# skills Claude Code, liens symboliques locaux vers ~/.claude/skills/
+# non versionnés : les chemins absolus ne résoudraient pas chez les autres membres
+.claude/skills/
