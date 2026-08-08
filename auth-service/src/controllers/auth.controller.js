@@ -1,25 +1,36 @@
-const authService = require("../services/auth.service");
+import * as authService from "../services/auth.service.js";
+
+function respondError(res, error) {
+
+    const status = error.status || 500;
+    const message = error.status ? error.message : "Erreur interne du serveur";
+
+    if (!error.status) {
+        console.error("Erreur auth-service:", error.message);
+    }
+
+    res.status(status).json({
+        error: message
+    });
+}
 
 
 
-const register = async(req,res)=>{
+export const register = async (req, res) => {
 
-    try{
+    try {
 
-        const user = await authService.register(req.body);
-
+        const { user, token, expiresIn } = await authService.register(req.body);
 
         res.status(201).json({
-            message:"User created",
-            user
+            user,
+            token,
+            expiresIn
         });
 
+    } catch (error) {
 
-    }catch(error){
-
-        res.status(400).json({
-            error:error.message
-        });
+        respondError(res, error);
 
     }
 
@@ -27,38 +38,18 @@ const register = async(req,res)=>{
 
 
 
+export const login = async (req, res) => {
 
-
-const login = async(req,res)=>{
-
-
-    try{
-
+    try {
 
         const result = await authService.login(req.body);
 
-
         res.json(result);
 
+    } catch (error) {
 
-
-    }catch(error){
-
-
-        res.status(401).json({
-            error:error.message
-        });
+        respondError(res, error);
 
     }
 
-
-};
-
-
-
-
-
-module.exports={
-    register,
-    login
 };

@@ -1,110 +1,115 @@
-const bcrypt = require("bcrypt");
-const jwt = require("jsonwebtoken");
-const pool = require("../config/database");
+import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
+import prisma from "../config/prisma.js";
+import AppError from "../utils/app-error.js";
 
+const VALID_ROLES = ["organisateur", "participant"];
+const UNIQUE_CONSTRAINT = "P2002";
 
-
-async function register({email,password,role}) {
-
-
-    const passwordHash = await bcrypt.hash(password,10);
-
-
-    const result = await pool.query(
-        `
-        INSERT INTO users(email,password_hash,role)
-        VALUES($1,$2,$3)
-        RETURNING id,email,role,created_at
-        `,
-        [
-            email,
-            passwordHash,
-            role
-        ]
+function signToken(user) {
+    return jwt.sign(
+        {
+            id: user.id,
+            email: user.email,
+            role: user.role
+        },
+        process.env.JWT_SECRET,
+        {
+            expiresIn: "24h"
+        }
     );
-
-
-    return result.rows[0];
-
 }
 
+function toPublicUser(user) {
+    return {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        createdAt: user.createdAt
+    };
+}
 
+export async function register({ email, password, role }) {
 
-
-async function login({email,password}) {
-
-
-    const result = await pool.query(
-        `
-        SELECT *
-        FROM users
-        WHERE email=$1
-        `,
-        [email]
-    );
-
-
-    if(result.rows.length===0){
-
-        throw new Error("Invalid credentials");
-
+    if (!email || !password) {
+        throw new AppError(400, "email et password sont requis");
     }
 
-
-
-    const user=result.rows[0];
-
-
-
-    const validPassword = await bcrypt.compare(
-        password,
-        user.password_hash
-    );
-
-
-    if(!validPassword){
-
-        throw new Error("Invalid credentials");
-
+    if (!VALID_ROLES.includes(role)) {
+        throw new AppError(400, `role doit etre l'un de : ${VALID_ROLES.join(", ")}`);
     }
 
+    const passwordHash = await bcrypt.hash(password, 10);
 
+    let user;
 
-    const token = jwt.sign(
+    try {
 
-        {
-            id:user.id,
-            email:user.email,
-            role:user.role
-        },
+        user = await prisma.user.create({
+            data: {
+                email,
+                passwordHash,
+                role
+            }
+        });
 
-        process.env.JWT_SECRET,
+    } catch (error) {
 
-        {
-            expiresIn:"24h"
+        if (error.code === UNIQUE_CONSTRAINT) {
+            throw new AppError(409, "Cet email a deja un compte");
         }
 
-    );
+        throw error;
 
-
+    }
 
     return {
-
-        token,
-
-        user:{
-            id:user.id,
-            email:user.email,
-            role:user.role
-        }
-
+        user: toPublicUser(user),
+        token: signToken(user),
+        expiresIn: 86400
     };
 
 }
 
 
 
-module.exports={
-    register,
-    login
-};
+
+export async function login({ email, password }) {
+
+    const user = await prisma.user.findUnique({
+        where: { email }
+    });
+
+    if (!user) {
+
+        throw new AppError(401, "Identifiants incorrects");
+
+    }
+
+    const validPassword = await bcrypt.compare(
+        password,
+        user.passwordHash
+    );
+
+
+    if (!validPassword) {
+
+        throw new AppError(401, "Identifiants incorrects");
+
+    }
+
+    await prisma.user.update({
+        where: { id: user.id },
+        data: { lastLoginAt: new Date() }
+    });
+
+
+    return {
+
+        token: signToken(user),
+
+        user: toPublicUser(user)
+
+    };
+
+}
