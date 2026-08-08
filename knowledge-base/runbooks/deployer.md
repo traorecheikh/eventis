@@ -29,7 +29,7 @@ Durée totale : cinq à huit minutes.
 ```bash
 curl -fsS https://venuva.xyz/api/events        | head
 curl -fsS https://venuva.xyz/api/auth/docs     -o /dev/null -w "%{http_code}\n"
-curl -I    https://venuva.xyz
+curl -fsSIL https://venuva.xyz
 ```
 
 Dans Dokploy, vérifier que les dix conteneurs sont en état sain et qu'aucun n'est en
