@@ -28,7 +28,7 @@ graph TB
         UK["Uptime Kuma<br/>supervision"]
     end
 
-    U -->|HTTPS eventis.xyz| T
+    U -->|HTTPS venuva.xyz| T
     T -->|HTTP| NG
     NG -->|/api/auth/*| AU
     NG -->|/api/events/*| EV
@@ -96,9 +96,9 @@ rapport.
 
 | URL publique | Service cible | Chemin interne |
 |---|---|---|
-| `https://eventis.xyz/` | nginx | build Vue statique |
-| `https://eventis.xyz/api/auth/login` | auth-service:3004 | `/auth/login` |
-| `https://eventis.xyz/api/events` | events-service:3001 | `/events` |
-| `https://eventis.xyz/api/participants` | participants-service:3002 | `/participants` |
-| `https://eventis.xyz/api/registrations` | registrations-service:3003 | `/registrations` |
-| `https://eventis.xyz/api/events/docs` | events-service:3001 | `/docs`, Swagger UI |
+| `https://venuva.xyz/` | nginx | build Vue statique |
+| `https://venuva.xyz/api/auth/login` | auth-service:3004 | `/auth/login` |
+| `https://venuva.xyz/api/events` | events-service:3001 | `/events` |
+| `https://venuva.xyz/api/participants` | participants-service:3002 | `/participants` |
+| `https://venuva.xyz/api/registrations` | registrations-service:3003 | `/registrations` |
+| `https://venuva.xyz/api/events/docs` | events-service:3001 | `/docs`, Swagger UI |

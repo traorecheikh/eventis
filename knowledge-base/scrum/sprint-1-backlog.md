@@ -3,12 +3,12 @@
 | Champ | Valeur |
 |---|---|
 | Période | 06 au 11 août 2026, 6 jours |
-| Objectif | Une application complète, conteneurisée, joignable en HTTPS sur eventis.xyz |
+| Objectif | Une application complète, conteneurisée, joignable en HTTPS sur venuva.xyz |
 | Capacité engagée | 116 points |
 
 ## Objectif de sprint
 
-> À la fin du Sprint 1, un utilisateur peut se connecter sur `https://eventis.xyz`,
+> À la fin du Sprint 1, un utilisateur peut se connecter sur `https://venuva.xyz`,
 > consulter la liste des événements, s'inscrire à l'un d'eux, et voir le nombre de
 > places restantes décrémenté. L'ensemble tourne dans des conteneurs Docker
 > déployés automatiquement depuis `main`.

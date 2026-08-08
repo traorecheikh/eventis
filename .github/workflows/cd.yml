@@ -136,4 +136,4 @@ jobs:
       - name: Verifier /api/events apres deploiement
         run: |
           sleep 15
-          curl -fsS https://eventis.xyz/api/events || echo "Verification echouee, voir knowledge-base/runbooks/depannage.md"
+          curl -fsS https://venuva.xyz/api/events || echo "Verification echouee, voir knowledge-base/runbooks/depannage.md"
