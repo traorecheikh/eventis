@@ -1,0 +1,139 @@
+name: CD
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+
+  test-auth:
+    name: test / auth-service
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: auth_user
+          POSTGRES_PASSWORD: ci_password
+          POSTGRES_DB: auth
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U auth_user"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://auth_user:ci_password@localhost:5432/auth
+      JWT_SECRET: ci-secret-not-used-in-production
+    defaults:
+      run:
+        working-directory: auth-service
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: auth-service/package-lock.json
+      - run: npm ci
+      - run: npm run lint:esm
+      - run: npx prisma migrate deploy
+      - run: npm test
+
+  test-events:
+    name: test / event-service
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: events_user
+          POSTGRES_PASSWORD: ci_password
+          POSTGRES_DB: events
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U events_user"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://events_user:ci_password@localhost:5432/events
+      JWT_SECRET: ci-secret-not-used-in-production
+    defaults:
+      run:
+        working-directory: event-service
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: event-service/package-lock.json
+      - run: npm ci
+      - run: npm run lint:esm
+      - run: npx prisma migrate deploy
+      - run: npm test
+
+  build-and-push:
+    name: build-and-push
+    needs: [test-auth, test-events]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v5
+        with:
+          context: ./auth-service
+          push: true
+          tags: |
+            ghcr.io/traorecheikh/eventis-auth-service:latest
+            ghcr.io/traorecheikh/eventis-auth-service:${{ github.sha }}
+
+      - uses: docker/build-push-action@v5
+        with:
+          context: ./event-service
+          push: true
+          tags: |
+            ghcr.io/traorecheikh/eventis-event-service:latest
+            ghcr.io/traorecheikh/eventis-event-service:${{ github.sha }}
+
+      - uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./gateway/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/traorecheikh/eventis-gateway:latest
+            ghcr.io/traorecheikh/eventis-gateway:${{ github.sha }}
+
+  deploy:
+    name: deploy
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Declencher le webhook Dokploy
+        env:
+          DOKPLOY_WEBHOOK: ${{ secrets.DOKPLOY_WEBHOOK }}
+        run: |
+          if [ -z "$DOKPLOY_WEBHOOK" ]; then
+            echo "DOKPLOY_WEBHOOK non configure, deploiement manuel requis (voir knowledge-base/runbooks/deployer.md)."
+            exit 0
+          fi
+          curl -fsS -X POST "$DOKPLOY_WEBHOOK"
+
+      - name: Verifier /api/events apres deploiement
+        run: |
+          sleep 15
+          curl -fsS https://eventis.xyz/api/events || echo "Verification echouee, voir knowledge-base/runbooks/depannage.md"
