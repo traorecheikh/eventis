@@ -123,6 +123,25 @@ jobs:
     needs: build-and-push
     runs-on: ubuntu-latest
     steps:
+      - name: Forcer le re-telechargement des images (IMAGE_TAG)
+        env:
+          DOKPLOY_API_URL: ${{ secrets.DOKPLOY_API_URL }}
+          DOKPLOY_API_TOKEN: ${{ secrets.DOKPLOY_API_TOKEN }}
+          DOKPLOY_COMPOSE_ID: ${{ secrets.DOKPLOY_COMPOSE_ID }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          if [ -z "$DOKPLOY_API_TOKEN" ]; then
+            echo "DOKPLOY_API_TOKEN non configure, IMAGE_TAG non mis a jour (docker compose up ne repull pas :latest, voir knowledge-base/runbooks/depannage.md)."
+            exit 0
+          fi
+          CURRENT_ENV=$(curl -fsS -H "x-api-key: $DOKPLOY_API_TOKEN" \
+            "$DOKPLOY_API_URL/compose.one?composeId=$DOKPLOY_COMPOSE_ID" | jq -r '.env // ""')
+          NEW_ENV=$(printf '%s\n' "$CURRENT_ENV" | grep -v '^IMAGE_TAG=')
+          NEW_ENV=$(printf '%s\nIMAGE_TAG=%s\n' "$NEW_ENV" "$IMAGE_TAG")
+          jq -n --arg composeId "$DOKPLOY_COMPOSE_ID" --arg env "$NEW_ENV" '{composeId: $composeId, env: $env}' \
+            | curl -fsS -X POST -H "x-api-key: $DOKPLOY_API_TOKEN" -H "Content-Type: application/json" \
+              -d @- "$DOKPLOY_API_URL/compose.saveEnvironment"
+
       - name: Declencher le webhook Dokploy
         env:
           DOKPLOY_WEBHOOK: ${{ secrets.DOKPLOY_WEBHOOK }}
