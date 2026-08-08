@@ -1,10 +1,16 @@
-# Compose temporaire : ne couvre que les services qui existent reellement dans
-# le depot (auth-service, event-service, frontend). participants-service et
+# Compose de production/Dokploy : telecharge des images prêtes depuis GHCR,
+# ne construit rien (voir README section 7.4, cd.yml). Pour construire en
+# local depuis les sources, utiliser docker-compose.dev.yml en plus :
+#
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+#
+# Ne couvre que les services qui existent reellement dans le depot
+# (auth-service, event-service, frontend). participants-service et
 # registrations-service n'ont encore qu'un squelette (package.json), pas de
 # code. Voir AGENTS.md, section "Etat du depot" : completer ce fichier au fur
 # et a mesure que ces services sont implementes, en suivant le meme patron
 # (service + base + reseau backend, entree ajoutee a gateway/nginx.conf,
-# healthcheck, depends_on condition service_healthy).
+# healthcheck, depends_on condition service_healthy, image ajoutee a cd.yml).
 
 services:
 
@@ -26,7 +32,7 @@ services:
       retries: 10
 
   auth-service:
-    build: ./auth-service
+    image: ghcr.io/traorecheikh/eventis-auth-service:${IMAGE_TAG:-latest}
     restart: unless-stopped
     environment:
       PORT: 3004
@@ -61,7 +67,7 @@ services:
       retries: 10
 
   event-service:
-    build: ./event-service
+    image: ghcr.io/traorecheikh/eventis-event-service:${IMAGE_TAG:-latest}
     restart: unless-stopped
     environment:
       PORT: 3001
@@ -79,9 +85,7 @@ services:
       retries: 5
 
   gateway:
-    build:
-      context: .
-      dockerfile: gateway/Dockerfile
+    image: ghcr.io/traorecheikh/eventis-gateway:${IMAGE_TAG:-latest}
     restart: unless-stopped
     ports:
       - "80:80"
