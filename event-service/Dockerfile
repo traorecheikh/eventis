@@ -18,9 +18,9 @@ RUN npx prisma generate
 
 USER node
 
-EXPOSE 3004
+EXPOSE 3001
 
 HEALTHCHECK --interval=10s --timeout=5s --retries=5 \
-    CMD wget -qO- http://localhost:3004/health || exit 1
+    CMD wget -qO- http://localhost:3001/health || exit 1
 
 CMD ["sh", "-c", "npx prisma migrate deploy && node src/server.js"]
