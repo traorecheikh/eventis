@@ -1,0 +1,114 @@
+# Compose temporaire : ne couvre que les services qui existent reellement dans
+# le depot (auth-service, event-service, frontend). participants-service et
+# registrations-service n'ont encore qu'un squelette (package.json), pas de
+# code. Voir AGENTS.md, section "Etat du depot" : completer ce fichier au fur
+# et a mesure que ces services sont implementes, en suivant le meme patron
+# (service + base + reseau backend, entree ajoutee a gateway/nginx.conf,
+# healthcheck, depends_on condition service_healthy).
+
+services:
+
+  auth-db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${AUTH_DB_USER}
+      POSTGRES_PASSWORD: ${AUTH_DB_PASSWORD}
+      POSTGRES_DB: ${AUTH_DB_NAME}
+    volumes:
+      - auth_data:/var/lib/postgresql/data
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${AUTH_DB_USER}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  auth-service:
+    build: ./auth-service
+    restart: unless-stopped
+    environment:
+      PORT: 3004
+      JWT_SECRET: ${JWT_SECRET}
+      DATABASE_URL: postgresql://${AUTH_DB_USER}:${AUTH_DB_PASSWORD}@auth-db:5432/${AUTH_DB_NAME}
+    depends_on:
+      auth-db:
+        condition: service_healthy
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3004/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  events-db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${EVENTS_DB_USER}
+      POSTGRES_PASSWORD: ${EVENTS_DB_PASSWORD}
+      POSTGRES_DB: ${EVENTS_DB_NAME}
+    volumes:
+      - events_data:/var/lib/postgresql/data
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${EVENTS_DB_USER}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  event-service:
+    build: ./event-service
+    restart: unless-stopped
+    environment:
+      PORT: 3001
+      JWT_SECRET: ${JWT_SECRET}
+      DATABASE_URL: postgresql://${EVENTS_DB_USER}:${EVENTS_DB_PASSWORD}@events-db:5432/${EVENTS_DB_NAME}
+    depends_on:
+      events-db:
+        condition: service_healthy
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  gateway:
+    build:
+      context: .
+      dockerfile: gateway/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      auth-service:
+        condition: service_healthy
+      event-service:
+        condition: service_healthy
+    networks:
+      - frontend
+      - backend
+
+  uptime-kuma:
+    image: louislam/uptime-kuma:1
+    restart: unless-stopped
+    ports:
+      - "3010:3001"
+    volumes:
+      - uptime_kuma_data:/app/data
+    networks:
+      - backend
+
+networks:
+  frontend:
+  backend:
+
+volumes:
+  auth_data:
+  events_data:
+  uptime_kuma_data:
