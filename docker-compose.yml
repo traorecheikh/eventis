@@ -87,8 +87,6 @@ services:
   gateway:
     image: ghcr.io/traorecheikh/eventis-gateway:${IMAGE_TAG:-latest}
     restart: unless-stopped
-    ports:
-      - "80:80"
     depends_on:
       auth-service:
         condition: service_healthy
