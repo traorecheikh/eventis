@@ -16,8 +16,13 @@ Aucune de ces technologies ne se remplace sans une ADR validée par le Scrum Mas
 | Couche | Technologie | Version |
 |---|---|---|
 | Backend | Node.js + Express | `node:24-alpine` |
-| Frontend | Vue 3 + Vite + Pinia + Vue Router | Vue 3.4+ |
+| Frontend | Vue 3 + Vite + Pinia + Vue Router | Vue 3.4+, Vite 8 |
+| Style frontend | Tailwind CSS + Reka UI (composants headless) | Tailwind 4 |
+| Icones frontend | lucide-vue-next | - |
+| Notifications frontend | vue-sonner | - |
+| Animation frontend | @vueuse/motion | - |
 | Base de données | PostgreSQL | 16 |
+| ORM | Prisma | 6 |
 | Passerelle | Nginx | `nginx:alpine` |
 | Documentation API | swagger-ui-express + swagger-jsdoc | - |
 | Tests backend | Jest + Supertest | - |
@@ -31,8 +36,15 @@ Aucune de ces technologies ne se remplace sans une ADR validée par le Scrum Mas
 
 - Pas de `node:latest` ni de `postgres:latest`. Les tags flottants cassent la
   reproductibilité des builds CI. Toujours une version majeure pinnée.
-- Pas de MongoDB, pas de Prisma, pas de NestJS, pas de TypeScript sur le backend.
-  Le sujet impose une base relationnelle et l'équipe a choisi Express en JavaScript.
+- Pas de MongoDB, pas de NestJS, pas de TypeScript sur le backend. Le sujet
+  impose une base relationnelle et l'équipe a choisi Express en JavaScript.
+- Prisma est la couche d'accès aux données autorisée, voir
+  [ADR 0010](knowledge-base/adr/0010-prisma-orm.md). Pas de requête SQL manuscrite
+  en dehors des migrations Prisma.
+- ES modules (`import`/`export`) partout sur le backend, jamais `require` ni
+  `module.exports`. Chaque `package.json` de service porte `"type": "module"`.
+  Vérifiable : `grep -rn "require(" --include=*.js --exclude-dir=node_modules .`
+  ne doit rien retourner en dehors de `prisma/migrations/`.
 - Pas de nouvelle dépendance npm sans justification. Si elle est structurante
   (ORM, framework, broker de messages), elle passe par une ADR dans
   `knowledge-base/adr/`.
@@ -150,7 +162,46 @@ et à tout texte généré.
 
 ---
 
-## 6. Structure du dépôt
+## 6. Interface frontend : éviter le rendu générique d'IA
+
+Constat documenté (retours communautaires type Reddit sur les interfaces générées
+par IA) : les assistants de code convergent vers un même style reconnaissable au
+premier coup d'œil, perçu comme non professionnel. Ces règles s'appliquent à tout
+écran, composant ou maquette produit par un agent IA sur ce dépôt.
+
+### Interdit
+
+- Dégradé violet/bleu générique en fond de hero ou de bouton principal.
+- Emoji utilisé comme icône fonctionnelle (bouton, statut, notification). Utiliser
+  `lucide-vue-next`.
+- Texte de remplissage générique ("Boostez votre productivité", "Une solution
+  puissante et intuitive") ou score creux type "4.9/5", "0/20 avis" sans donnée
+  réelle derrière.
+- Représentation stéréotypée de personnes, notamment de personnes africaines, dans
+  les illustrations, photos de profil factices ou textes d'exemple. Les données de
+  démonstration (`seed/`) utilisent des noms, lieux et contextes réels du Sénégal
+  sans caricature.
+- Carte ou bouton avec `box-shadow` lourd et coins très arrondis par défaut sans
+  justification de design.
+- Tiret cadratin, y compris dans les textes d'interface (même règle qu'en section 5).
+
+### Attendu
+
+- Feedback visuel réel sur chaque action : `vue-sonner` pour les notifications,
+  états de chargement explicites (pas de simple spinner générique sans contexte),
+  transitions `@vueuse/motion` discrètes et fonctionnelles, jamais décoratives
+  seules.
+- Composants accessibles construits sur `reka-ui` (clavier, focus, ARIA), stylés
+  avec Tailwind : pas de composant visuel réinventé à la main quand `reka-ui`
+  couvre le cas (dialogue, menu, select, tooltip).
+- Palette et typographie choisies pour ce projet, pas les valeurs par défaut du
+  gabarit Vite. Contraste vérifié (WCAG AA minimum).
+- Copie en français, concrète, qui décrit l'action ("Créer l'événement") plutôt que
+  l'émotion ("Vivez une expérience unique").
+
+---
+
+## 7. Structure du dépôt
 
 ```
 eventis/
@@ -172,7 +223,7 @@ eventis/
 
 ---
 
-## 7. Secrets
+## 8. Secrets
 
 - Rien de secret n'entre dans le dépôt. Jamais.
 - `.env` est dans `.gitignore`. `.env.example` liste les clés avec des valeurs
@@ -185,7 +236,7 @@ eventis/
 
 ---
 
-## 8. Rôles
+## 9. Rôles
 
 Découpage en tranches verticales : chaque développeur possède un service backend
 **et** les écrans qui le consomment.
@@ -205,7 +256,7 @@ Détail complet dans `knowledge-base/scrum/repartition-taches.md`.
 
 ---
 
-## 9. Où chercher quoi
+## 10. Où chercher quoi
 
 | Besoin | Fichier |
 |---|---|
@@ -216,3 +267,31 @@ Détail complet dans `knowledge-base/scrum/repartition-taches.md`.
 | Un conteneur ne démarre pas | `knowledge-base/runbooks/depannage.md` |
 | Qui fait quoi et quand | `knowledge-base/scrum/repartition-taches.md`, `calendrier.md` |
 | Spécification du Dockerfile ou du pipeline | `knowledge-base/specs/` |
+
+---
+
+## 11. État du dépôt (à tenir à jour)
+
+Ce dépôt est en cours de construction. Un agent qui reprend le travail doit
+d'abord lire ce tableau, pas supposer que ce que décrivent le README ou les
+contrats est déjà implémenté.
+
+| Élément | État |
+|---|---|
+| `auth-service` | Implémenté : Prisma, ES modules, tests unitaires + intégration, Dockerfile |
+| `event-service` | Implémenté partiellement : `GET /events` (public, pagination page/limit) et `POST /events` (authentifié) seulement. Manquent `GET /events/:id`, `PUT /events/:id`, `DELETE /events/:id`, `GET /events/:id/availability`, filtres `date`/`dateFrom`/`dateTo`/`location`. Voir le contrat `knowledge-base/api/events-service.md`. Le dossier s'appelle `event-service` (singulier) alors que le contrat et le README disent `events-service` : renommage à faire dans une PR dédiée, pas en même temps qu'une autre modification |
+| `participants-service` | Squelette seulement : `package.json` avec les dépendances attendues, dossiers vides avec `.gitkeep`. Aucun code. Voir `participants-service/README.md` pour la marche à suivre |
+| `registrations-service` | Squelette seulement, même état que `participants-service` |
+| `frontend/` | Socle scaffoldé (Vue 3, Vite 8, Vue Router, Pinia, Tailwind, Reka UI, lucide, vue-sonner, @vueuse/motion) et vérifié : `npm run build` passe. Une seule vue de vérification (`HomeView.vue`), aucun écran produit réel. Voir section 6 pour les règles de design avant d'en construire |
+| `gateway/` | `nginx.conf` proxifie `/api/auth` et `/api/events` seulement, sections `participants`/`registrations` commentées prêtes à activer. Construit et testé avec `docker compose up`, y compris le frontend intégré dans la même image (ADR 0005) |
+| `docker-compose.yml` | Couvre `auth-service`, `event-service`, `gateway` (avec frontend intégré), `uptime-kuma`. Ne couvre pas encore `participants-service`/`registrations-service`, absents du code |
+| `.github/workflows/` | N'existe pas encore. `ci.yml` à écrire : jobs indépendants par service (path filters sur `auth-service/**`, `event-service/**`, etc.), `lint:esm` puis `test` par service. `cd.yml` et `security.yml` mentionnés au README restent à faire |
+| Uptime Kuma | Conteneur ajouté au compose, port `3010` en local. Configuration des moniteurs (health check par service) pas encore faite, à faire une fois le VPS stable |
+
+**Consigne pour tout agent IA** : si une tâche demandée dépend d'un élément
+marqué incomplet ci-dessus, le compléter dans la mesure du raisonnable avant de
+continuer, en suivant le patron déjà établi par `auth-service` et
+`event-service` (Prisma, ES modules, tests, Dockerfile, healthcheck). Mettre à
+jour ce tableau après coup. Ne jamais prétendre qu'un élément est fini sans
+l'avoir vérifié par une commande réelle (`npm test`, `docker compose build`,
+`docker compose up` puis `curl`).
