@@ -29,8 +29,9 @@ la marge pour Playwright et Uptime Kuma.
 première année.
 
 Le sujet impose le nom **EventHub**. Celui-ci est conservé dans le rapport, le README
-et le code. `Eventis` sert uniquement de marque de déploiement : nom du dépôt et
-domaine. Le correcteur retrouve le nom du sujet partout dans les livrables.
+et le code. `Eventis` sert uniquement de nom de dépôt GitHub. `venuva.xyz` est le
+domaine de déploiement, distinct du nom du dépôt. Le correcteur retrouve le nom du
+sujet partout dans les livrables.
 
 ## Conséquences
 
