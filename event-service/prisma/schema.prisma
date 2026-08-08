@@ -1,0 +1,24 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Event {
+  id          Int      @id @default(autoincrement())
+  title       String   @db.VarChar(200)
+  description String?  @db.Text
+  date        DateTime @db.Timestamptz
+  location    String   @db.VarChar(200)
+  maxCapacity Int      @map("max_capacity")
+  creatorId   Int      @map("creator_id")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@index([date], name: "idx_events_date")
+  @@index([location], name: "idx_events_location")
+  @@map("events")
+}
