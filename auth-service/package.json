@@ -3,11 +3,14 @@
   "version": "1.0.0",
   "description": "Microservice d'authentification JWT pour EventHub",
   "main": "src/server.js",
-  "type": "commonjs",
+  "type": "module",
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
-    "test": "jest"
+    "dx": "node scripts/dx.js",
+    "lint:esm": "node scripts/check-no-require.js",
+    "pretest": "npm run lint:esm",
+    "test": "node --experimental-vm-modules node_modules/.bin/jest --coverage"
   },
   "keywords": [
     "eventhub",
@@ -18,12 +21,13 @@
   "author": "Alpha Abdoulaye LANSAR",
   "license": "ISC",
   "dependencies": {
+    "@prisma/client": "^6.19.3",
     "bcrypt": "^6.0.0",
     "cors": "^2.8.5",
     "dotenv": "^17.2.1",
     "express": "^5.1.0",
     "jsonwebtoken": "^9.0.3",
-    "pg": "^8.22.0"
+    "prisma": "^6.19.3"
   },
   "devDependencies": {
     "jest": "^30.0.5",
