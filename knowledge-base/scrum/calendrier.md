@@ -23,7 +23,7 @@ Onze jours ouvrés à partir d'aujourd'hui.
 
 | Qui | Tâches |
 |---|---|
-| Scrum Master | Sprint Planning 1. Créer le dépôt GitHub, les branches `main` et `develop`, les protections, les templates. Figer les 4 contrats d'API. Créer le board GitHub Projects et les issues du sprint. Commander le VPS Contabo et le domaine `eventis.xyz`. |
+| Scrum Master | Sprint Planning 1. Créer le dépôt GitHub, les branches `main` et `develop`, les protections, les templates. Figer les 4 contrats d'API. Créer le board GitHub Projects et les issues du sprint. Commander le VPS Contabo et le domaine `venuva.xyz`. |
 | Alpha | **Socle frontend en priorité** : projet Vite, Vue Router, Pinia, client axios, mise en page. Les trois autres en dépendent. |
 | Kassem, Mamadou, Thierno | Prendre connaissance des contrats. Initialiser leur projet Node : structure, `package.json`, connexion PostgreSQL, route `/health`. |
 
@@ -33,7 +33,7 @@ Fin de journée : chaque membre a poussé au moins une PR sur `develop`.
 
 | Qui | Tâches |
 |---|---|
-| Scrum Master | Installer Dokploy sur le VPS. Pointer le DNS de `eventis.xyz`. Écrire les 5 Dockerfiles et le premier `docker-compose.yml`. Objectif : `docker compose up` démarre les 10 conteneurs en local. |
+| Scrum Master | Installer Dokploy sur le VPS. Pointer le DNS de `venuva.xyz`. Écrire les 5 Dockerfiles et le premier `docker-compose.yml`. Objectif : `docker compose up` démarre les 10 conteneurs en local. |
 | Alpha | `auth-service` complet : register, login, `/me`, bcrypt, JWT. Prérequis de toutes les routes protégées. Pages de connexion et d'inscription. |
 | Kassem, Mamadou, Thierno | Schémas SQL et premières routes CRUD de leur service, contre le contrat figé. |
 
@@ -51,7 +51,7 @@ Fin de journée : chaque membre a poussé au moins une PR sur `develop`.
 
 | Qui | Tâches |
 |---|---|
-| Scrum Master | Compléter le pipeline : build des images, push vers GHCR, appel du webhook Dokploy. **Objectif du jour : `https://eventis.xyz` répond.** |
+| Scrum Master | Compléter le pipeline : build des images, push vers GHCR, appel du webhook Dokploy. **Objectif du jour : `https://venuva.xyz` répond.** |
 | Thierno | `registrations-service` : séquence de vérification en 5 étapes, annulation logique, statistiques. Puis l'écran d'inscription en un clic. |
 | Kassem | Route `/events/:id/availability`, qui appelle `registrations-service`. |
 | Alpha, Mamadou | Tests Jest sur leur service. Finition de leurs écrans. |
@@ -66,7 +66,7 @@ Fin de journée : chaque membre a poussé au moins une PR sur `develop`.
 | Fin de journée | **Sprint Planning 2** |
 
 Critère de succès du Sprint 1 : les 4 services répondent, le frontend affiche des
-données réelles, l'application est joignable en HTTPS sur `eventis.xyz`.
+données réelles, l'application est joignable en HTTPS sur `venuva.xyz`.
 
 ---
 

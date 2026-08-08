@@ -1,4 +1,4 @@
-# ADR 0009 : VPS Contabo 8 Go et domaine eventis.xyz
+# ADR 0009 : VPS Contabo 8 Go et domaine venuva.xyz
 
 Date : 06/08/2026. Statut : accepté, achat en cours.
 
@@ -25,7 +25,7 @@ la marge pour Playwright et Uptime Kuma.
 
 ## Décision nom de domaine
 
-`eventis.xyz`, vérifié disponible par requête RDAP le 06/08/2026, environ 2 euros la
+`venuva.xyz`, vérifié disponible par requête RDAP le 06/08/2026, environ 2 euros la
 première année.
 
 Le sujet impose le nom **EventHub**. Celui-ci est conservé dans le rapport, le README

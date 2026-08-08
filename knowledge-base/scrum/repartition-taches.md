@@ -115,7 +115,7 @@ services avant d'écrire en base. Il est planifié en dernier, une fois
 | Conteneurisation | 5 Dockerfiles multi-étapes, `docker-compose.yml`, 2 réseaux, 4 volumes, healthchecks, limites mémoire |
 | Passerelle | Configuration Nginx : service du build Vue et proxy des 4 préfixes `/api/*` |
 | CI/CD | `ci.yml`, `cd.yml`, `security.yml`, publication sur GHCR, webhook Dokploy |
-| Infrastructure | Achat et durcissement du VPS Contabo, installation de Dokploy, domaine `eventis.xyz`, TLS, Uptime Kuma |
+| Infrastructure | Achat et durcissement du VPS Contabo, installation de Dokploy, domaine `venuva.xyz`, TLS, Uptime Kuma |
 | Documentation | `README.md`, base de connaissances, rapport LaTeX, diagrammes, vidéo de secours |
 | Pilotage | Toutes les tâches listées dans `equipe.md`, section "Toutes les tâches du Scrum Master" |
 | Revue | Relecture et approbation de **toutes** les Pull Requests |
