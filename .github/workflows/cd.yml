@@ -131,7 +131,10 @@ jobs:
             echo "DOKPLOY_WEBHOOK non configure, deploiement manuel requis (voir knowledge-base/runbooks/deployer.md)."
             exit 0
           fi
-          curl -fsS -X POST "$DOKPLOY_WEBHOOK"
+          curl -fsS -X POST "$DOKPLOY_WEBHOOK" \
+            -H "Content-Type: application/json" \
+            -H "X-GitHub-Event: push" \
+            -d '{"ref":"refs/heads/main","repository":{"full_name":"traorecheikh/eventis"}}'
 
       - name: Verifier /api/events apres deploiement
         run: |
