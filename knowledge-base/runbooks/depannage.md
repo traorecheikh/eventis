@@ -48,7 +48,7 @@ Le service cible est arrêté ou n'écoute pas sur le port attendu. Vérifier qu
 ## Certificat TLS non émis
 
 ```bash
-dig +short eventis.xyz
+dig +short venuva.xyz
 ```
 
 Let's Encrypt exige que le domaine résolve vers l'IP du VPS **avant** la demande de

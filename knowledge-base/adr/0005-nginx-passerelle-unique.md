@@ -15,7 +15,7 @@ quatre préfixes `/api/*` vers les services.
 
 ```
 Internet
-  -> Traefik (Dokploy, TLS, eventis.xyz)     couche gérée par la plateforme
+  -> Traefik (Dokploy, TLS, venuva.xyz)     couche gérée par la plateforme
   -> nginx (:80)                             notre conteneur, seul exposé
   -> auth / events / participants / registrations   réseau backend privé
 ```

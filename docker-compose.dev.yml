@@ -1,5 +1,7 @@
 # Override de developpement local : construit les images depuis les sources
-# au lieu de les telecharger depuis GHCR. Usage :
+# au lieu de les telecharger depuis GHCR, et publie le port 80 sur l'hote
+# (en production, Traefik gere ce port, voir docker-compose.yml et ADR 0005).
+# Usage :
 #
 #   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
 #
@@ -21,3 +23,5 @@ services:
       context: .
       dockerfile: gateway/Dockerfile
     image: eventis-gateway:dev
+    ports:
+      - "80:80"

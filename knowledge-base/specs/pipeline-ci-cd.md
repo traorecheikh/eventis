@@ -77,7 +77,7 @@ jobs:
     needs: docker
     steps:
       - curl -X POST "${{ secrets.DOKPLOY_WEBHOOK }}"
-      - attente de 60 secondes puis vérification de https://eventis.xyz/api/events
+      - attente de 60 secondes puis vérification de https://venuva.xyz/api/events
 ```
 
 ## Filtres de chemin
@@ -129,4 +129,4 @@ En dessous, `npm test` sort en erreur et la CI échoue.
 2. Casser volontairement un test : la PR devient non mergeable.
 3. Merger vers `main` : `cd.yml` publie 5 images sur GHCR et appelle le webhook.
 4. Vérifier dans l'onglet Packages du dépôt que les 5 images sont présentes.
-5. Vérifier que `https://eventis.xyz` sert la nouvelle version.
+5. Vérifier que `https://venuva.xyz` sert la nouvelle version.

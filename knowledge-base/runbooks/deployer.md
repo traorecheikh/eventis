@@ -22,14 +22,14 @@ Durée totale : cinq à huit minutes.
 | Onglet Actions du dépôt | Avancement du workflow |
 | Onglet Packages du dépôt | Date de publication des 5 images |
 | Dokploy, onglet Deployments | Journal du redéploiement |
-| `https://eventis.xyz/api/events` | Réponse de l'application |
+| `https://venuva.xyz/api/events` | Réponse de l'application |
 
 ## Vérification après déploiement
 
 ```bash
-curl -fsS https://eventis.xyz/api/events        | head
-curl -fsS https://eventis.xyz/api/auth/docs     -o /dev/null -w "%{http_code}\n"
-curl -I    https://eventis.xyz
+curl -fsS https://venuva.xyz/api/events        | head
+curl -fsS https://venuva.xyz/api/auth/docs     -o /dev/null -w "%{http_code}\n"
+curl -I    https://venuva.xyz
 ```
 
 Dans Dokploy, vérifier que les dix conteneurs sont en état sain et qu'aucun n'est en
