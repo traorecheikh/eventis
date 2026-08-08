@@ -1,0 +1,31 @@
+{
+  "name": "registrations-service",
+  "version": "1.0.0",
+  "description": "Microservice inscriptions pour EventHub (squelette, pas encore implemente)",
+  "main": "src/server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "dx": "node scripts/dx.js",
+    "lint:esm": "node scripts/check-no-require.js",
+    "pretest": "npm run lint:esm",
+    "test": "node --experimental-vm-modules node_modules/.bin/jest --coverage"
+  },
+  "keywords": ["eventhub", "registrations", "express"],
+  "author": "BAH Thierno Madjou",
+  "license": "ISC",
+  "dependencies": {
+    "@prisma/client": "^6.19.3",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.1",
+    "express": "^5.1.0",
+    "jsonwebtoken": "^9.0.3",
+    "prisma": "^6.19.3"
+  },
+  "devDependencies": {
+    "jest": "^30.0.5",
+    "nodemon": "^3.1.10",
+    "supertest": "^7.1.4"
+  }
+}
