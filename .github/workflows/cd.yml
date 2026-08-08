@@ -135,5 +135,12 @@ jobs:
 
       - name: Verifier /api/events apres deploiement
         run: |
-          sleep 15
-          curl -fsS https://venuva.xyz/api/events || echo "Verification echouee, voir knowledge-base/runbooks/depannage.md"
+          for i in $(seq 1 10); do
+            if curl -fsS https://venuva.xyz/api/events; then
+              exit 0
+            fi
+            echo "Tentative $i/10 echouee, nouvelle tentative dans 10s..."
+            sleep 10
+          done
+          echo "Verification echouee apres 10 tentatives, voir knowledge-base/runbooks/depannage.md"
+          exit 1

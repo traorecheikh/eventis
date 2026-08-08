@@ -103,7 +103,7 @@ Dokploy.
 ## 7. Vérifier
 
 ```bash
-curl -I https://venuva.xyz                  # 200, certificat valide
+curl -fsSI https://venuva.xyz                # 200, certificat valide
 curl -fsS https://venuva.xyz/api/events     # réponse JSON
 ```
 
