@@ -59,7 +59,7 @@ Quatre services backend, une passerelle, quatre bases.
 Internet
    |
    v
-Traefik (géré par Dokploy, TLS Let's Encrypt, eventis.xyz)
+Traefik (géré par Dokploy, TLS Let's Encrypt, venuva.xyz)
    |
    v
 nginx  (sert le build Vue + proxifie /api/*)   <-- seul conteneur exposé
@@ -86,7 +86,7 @@ Règles :
 
 | Branche | Rôle |
 |---|---|
-| `main` | Production. Déploiement automatique sur eventis.xyz. |
+| `main` | Production. Déploiement automatique sur venuva.xyz. |
 | `develop` | Intégration continue. Cible par défaut des PR. |
 | `feature/*` | Travail en cours. |
 

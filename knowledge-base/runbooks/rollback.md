@@ -39,7 +39,7 @@ Le push sur `main` relance `cd.yml`. Suivre l'avancement dans l'onglet Actions.
 ### 4. Vérifier
 
 ```bash
-curl -fsS https://eventis.xyz/api/events
+curl -fsS https://venuva.xyz/api/events
 ```
 
 ## Retour arrière d'urgence, sans reconstruction
