@@ -60,7 +60,7 @@ immédiatement : le premier visiteur devient administrateur.
 
 ## 4. Configurer le domaine
 
-Chez le registrar de `eventis.xyz`, créer :
+Chez le registrar de `venuva.xyz`, créer :
 
 | Type | Nom | Valeur |
 |---|---|---|
@@ -70,7 +70,7 @@ Chez le registrar de `eventis.xyz`, créer :
 Vérifier la propagation :
 
 ```bash
-dig +short eventis.xyz
+dig +short venuva.xyz
 ```
 
 Compter de quelques minutes à quelques heures.
@@ -81,7 +81,7 @@ Compter de quelques minutes à quelques heures.
 2. Type **Docker Compose**.
 3. Source : dépôt GitHub `traorecheikh/eventis`, branche `main`.
 4. Chemin du fichier compose : `docker-compose.yml`.
-5. Onglet Domains : ajouter `eventis.xyz`, service `nginx`, port `80`,
+5. Onglet Domains : ajouter `venuva.xyz`, service `nginx`, port `80`,
    activer **HTTPS** et le certificat Let's Encrypt.
 6. Onglet Environment : renseigner les variables listées dans `.env.example`.
    Générer chaque mot de passe avec `openssl rand -base64 24` et le `JWT_SECRET`
@@ -103,8 +103,8 @@ Dokploy.
 ## 7. Vérifier
 
 ```bash
-curl -I https://eventis.xyz                  # 200, certificat valide
-curl -fsS https://eventis.xyz/api/events     # réponse JSON
+curl -I https://venuva.xyz                  # 200, certificat valide
+curl -fsS https://venuva.xyz/api/events     # réponse JSON
 ```
 
 Dans Dokploy, l'onglet Logs de chaque service doit être exempt d'erreur, et les dix
