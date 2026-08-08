@@ -1,0 +1,23 @@
+# Override de developpement local : construit les images depuis les sources
+# au lieu de les telecharger depuis GHCR. Usage :
+#
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+#
+# En production/Dokploy, docker-compose.yml seul suffit (images GHCR, voir
+# cd.yml).
+
+services:
+
+  auth-service:
+    build: ./auth-service
+    image: eventis-auth-service:dev
+
+  event-service:
+    build: ./event-service
+    image: eventis-event-service:dev
+
+  gateway:
+    build:
+      context: .
+      dockerfile: gateway/Dockerfile
+    image: eventis-gateway:dev
