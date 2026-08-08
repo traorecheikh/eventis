@@ -30,7 +30,7 @@ coller la sortie sans la reformuler
 
 ## Environnement
 
-Local / déployé sur eventis.xyz
+Local / déployé sur venuva.xyz
 
 ## Gravité
 

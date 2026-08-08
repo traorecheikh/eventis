@@ -8,7 +8,7 @@ Technology. Équipe 7.
 ![CI](https://github.com/traorecheikh/eventis/actions/workflows/ci.yml/badge.svg)
 ![CD](https://github.com/traorecheikh/eventis/actions/workflows/cd.yml/badge.svg)
 
-Application déployée : [https://eventis.xyz](https://eventis.xyz)
+Application déployée : [https://venuva.xyz](https://venuva.xyz)
 
 ---
 
@@ -63,7 +63,7 @@ bases de données.
 ```mermaid
 graph TB
     U[Navigateur]
-    T["Traefik<br/>TLS, eventis.xyz<br/>géré par Dokploy"]
+    T["Traefik<br/>TLS, venuva.xyz<br/>géré par Dokploy"]
     NG["nginx<br/>sert le build Vue<br/>proxifie /api/*"]
 
     AU["auth-service :3004"]
@@ -345,7 +345,7 @@ Trois workflows dans `.github/workflows/`.
 
 | Branche | Rôle |
 |---|---|
-| `main` | Production, déploiement automatique sur eventis.xyz |
+| `main` | Production, déploiement automatique sur venuva.xyz |
 | `develop` | Intégration continue, cible par défaut des PR |
 | `feature/*` | Développement d'une fonctionnalité |
 
