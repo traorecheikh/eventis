@@ -15,6 +15,12 @@ build/
 .vite/
 *.tsbuildinfo
 
+# OpenAPI genere depuis les annotations @openapi (npm run docs:generate) et
+# client genere par Orval depuis ce fichier (npm run generate:api). Jamais
+# ecrit a la main, jamais committe : source de verite = les annotations JSDoc.
+openapi.json
+frontend/src/api/generated/
+
 # tests et couverture
 coverage/
 .nyc_output/

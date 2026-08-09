@@ -25,6 +25,7 @@ Aucune de ces technologies ne se remplace sans une ADR validée par le Scrum Mas
 | ORM | Prisma | 6 |
 | Passerelle | Nginx | `nginx:alpine` |
 | Documentation API | swagger-ui-express + swagger-jsdoc | - |
+| Client API frontend | Orval (genere depuis l'OpenAPI de chaque service) | - |
 | Tests backend | Jest + Supertest | - |
 | Tests frontend | Vitest | - |
 | Tests bout en bout | Playwright | - |
@@ -48,6 +49,15 @@ Aucune de ces technologies ne se remplace sans une ADR validée par le Scrum Mas
 - Pas de nouvelle dépendance npm sans justification. Si elle est structurante
   (ORM, framework, broker de messages), elle passe par une ADR dans
   `knowledge-base/adr/`.
+- Le contrat OpenAPI de chaque service est **généré** depuis des annotations
+  JSDoc `@openapi` au-dessus de chaque route (`swagger-jsdoc`), jamais écrit à
+  la main. Le client frontend est **généré** par Orval depuis ce contrat,
+  jamais écrit à la main. Voir
+  [ADR 0011](knowledge-base/adr/0011-openapi-genere-orval.md). Ni
+  `openapi.json` ni `frontend/src/api/generated/` ne sont committés
+  (`.gitignore`) : un agent qui les voit absents doit les régénérer
+  (`npm run docs:generate` dans chaque service, puis `npm run generate:api`
+  dans `frontend/`), jamais les recréer à la main.
 
 ---
 
