@@ -15,7 +15,15 @@ A faire, dans l'ordre, en suivant le patron etabli par `auth-service/` et
 5. `src/server.js`, meme validation de variables d'environnement au demarrage
    que les deux autres services.
 6. `Dockerfile`, copie adaptee de `auth-service/Dockerfile`.
-7. Tests unitaires (Prisma mocke) et d'integration (Postgres ephemere).
-8. Ajouter le service a `docker-compose.yml` et a `gateway/nginx.conf`
-   (decommenter la section prevue).
-9. Ajouter un job dans `.github/workflows/ci.yml`.
+7. `src/config/swagger.js` + annotations JSDoc `@openapi` sur chaque route +
+   `scripts/generate-openapi.js` + script npm `docs:generate`, meme patron
+   qu'`auth-service`. Voir
+   [ADR 0011](../knowledge-base/adr/0011-openapi-genere-orval.md) : le
+   contrat OpenAPI est genere depuis le JSDoc, jamais ecrit a la main.
+8. Ajouter un projet `registrations` dans `frontend/orval.config.js` une fois
+   le service expose ses routes, pour que le frontend puisse regenerer son
+   client.
+9. Tests unitaires (Prisma mocke) et d'integration (Postgres ephemere).
+10. Ajouter le service a `docker-compose.yml` et a `gateway/nginx.conf`
+    (decommenter la section prevue).
+11. Ajouter un job dans `.github/workflows/ci.yml`.
