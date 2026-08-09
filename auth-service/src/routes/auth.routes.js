@@ -80,6 +80,12 @@ import authenticate from "../middleware/auth.middleware.js";
  *           application/json:
  *             schema:
  *               $ref: "#/components/schemas/Error"
+ *       500:
+ *         description: Erreur interne
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Error"
  */
 router.post("/register", authController.register);
 
