@@ -1,8 +1,10 @@
 import express from "express";
 import cors from "cors";
+import swaggerUi from "swagger-ui-express";
 import "dotenv/config";
 
 import authRoutes from "./routes/auth.routes.js";
+import swaggerSpec from "./config/swagger.js";
 
 const app = express();
 
@@ -21,6 +23,11 @@ app.get("/health", (req,res)=>{
 
 
 app.use("/api/auth", authRoutes);
+
+app.get("/api/auth/docs.json", (req, res) => {
+    res.json(swaggerSpec);
+});
+app.use("/api/auth/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 
 

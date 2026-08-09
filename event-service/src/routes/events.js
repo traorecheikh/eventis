@@ -6,8 +6,99 @@ import auth from "../middleware/auth.js";
 const DEFAULT_PAGE_SIZE = 20;
 const MAX_PAGE_SIZE = 100;
 
+/**
+ * @openapi
+ * components:
+ *   schemas:
+ *     Event:
+ *       type: object
+ *       required: [id, title, date, location, maxCapacity, creatorId, createdAt, updatedAt]
+ *       properties:
+ *         id:
+ *           type: integer
+ *         title:
+ *           type: string
+ *         description:
+ *           type: string
+ *           nullable: true
+ *         date:
+ *           type: string
+ *           format: date-time
+ *         location:
+ *           type: string
+ *         maxCapacity:
+ *           type: integer
+ *         creatorId:
+ *           type: integer
+ *         createdAt:
+ *           type: string
+ *           format: date-time
+ *         updatedAt:
+ *           type: string
+ *           format: date-time
+ *     Pagination:
+ *       type: object
+ *       required: [page, limit, total, totalPages]
+ *       properties:
+ *         page:
+ *           type: integer
+ *         limit:
+ *           type: integer
+ *         total:
+ *           type: integer
+ *         totalPages:
+ *           type: integer
+ *     Error:
+ *       type: object
+ *       required: [error]
+ *       properties:
+ *         error:
+ *           type: string
+ */
 
-// Accès public, pas de jeton requis.
+/**
+ * @openapi
+ * /:
+ *   get:
+ *     summary: Lister les evenements
+ *     description: Acces public, pas de jeton requis.
+ *     tags: [events]
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *           minimum: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *           minimum: 1
+ *           maximum: 100
+ *     responses:
+ *       200:
+ *         description: Liste paginee
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               required: [data, pagination]
+ *               properties:
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: "#/components/schemas/Event"
+ *                 pagination:
+ *                   $ref: "#/components/schemas/Pagination"
+ *       500:
+ *         description: Erreur interne
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Error"
+ */
 router.get("/", async (req, res) => {
 
     const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
@@ -48,6 +139,63 @@ router.get("/", async (req, res) => {
 
 
 
+/**
+ * @openapi
+ * /:
+ *   post:
+ *     summary: Creer un evenement
+ *     tags: [events]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [title, location, date, maxCapacity]
+ *             properties:
+ *               title:
+ *                 type: string
+ *                 minLength: 3
+ *                 maxLength: 200
+ *               description:
+ *                 type: string
+ *               date:
+ *                 type: string
+ *                 format: date-time
+ *                 description: ISO 8601, doit etre strictement dans le futur
+ *               location:
+ *                 type: string
+ *               maxCapacity:
+ *                 type: integer
+ *                 minimum: 1
+ *     responses:
+ *       201:
+ *         description: Evenement cree
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Event"
+ *       400:
+ *         description: Validation echouee (corps absent, titre, location, date ou maxCapacity invalide)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Error"
+ *       401:
+ *         description: Jeton absent, invalide ou expire
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Error"
+ *       500:
+ *         description: Erreur interne
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Error"
+ */
 router.post("/", auth, async (req, res) => {
 
     if (!req.body || typeof req.body !== "object") {
@@ -58,15 +206,29 @@ router.post("/", auth, async (req, res) => {
 
     const { title, description, date, location, maxCapacity } = req.body;
 
-    if (!title || title.length < 3 || title.length > 200) {
+    if (typeof title !== "string" || title.length < 3 || title.length > 200) {
         return res.status(400).json({
-            error: "title doit contenir entre 3 et 200 caracteres"
+            error: "title doit etre une chaine de 3 a 200 caracteres"
         });
     }
 
-    if (!location) {
+    if (description !== undefined && description !== null && typeof description !== "string") {
         return res.status(400).json({
-            error: "location est requis"
+            error: "description doit etre une chaine"
+        });
+    }
+
+    if (typeof location !== "string" || !location) {
+        return res.status(400).json({
+            error: "location doit etre une chaine non vide"
+        });
+    }
+
+    const ISO_8601_REGEX = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/;
+
+    if (typeof date !== "string" || !ISO_8601_REGEX.test(date)) {
+        return res.status(400).json({
+            error: "date doit etre une chaine au format ISO 8601"
         });
     }
 
