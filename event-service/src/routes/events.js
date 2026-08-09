@@ -206,19 +206,27 @@ router.post("/", auth, async (req, res) => {
 
     const { title, description, date, location, maxCapacity } = req.body;
 
-    if (!title || title.length < 3 || title.length > 200) {
+    if (typeof title !== "string" || title.length < 3 || title.length > 200) {
         return res.status(400).json({
-            error: "title doit contenir entre 3 et 200 caracteres"
+            error: "title doit etre une chaine de 3 a 200 caracteres"
         });
     }
 
-    if (!location) {
+    if (description !== undefined && description !== null && typeof description !== "string") {
         return res.status(400).json({
-            error: "location est requis"
+            error: "description doit etre une chaine"
         });
     }
 
-    if (typeof date !== "string") {
+    if (typeof location !== "string" || !location) {
+        return res.status(400).json({
+            error: "location doit etre une chaine non vide"
+        });
+    }
+
+    const ISO_8601_REGEX = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/;
+
+    if (typeof date !== "string" || !ISO_8601_REGEX.test(date)) {
         return res.status(400).json({
             error: "date doit etre une chaine au format ISO 8601"
         });

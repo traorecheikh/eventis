@@ -138,6 +138,7 @@ router.post("/register", authController.register);
  *           application/json:
  *             schema:
  *               type: object
+ *               required: [user, token]
  *               properties:
  *                 user:
  *                   $ref: "#/components/schemas/User"

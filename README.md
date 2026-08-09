@@ -312,7 +312,7 @@ Semgrep) est mentionné dans les specs mais pas encore écrit.
 | 3 | Garde ES modules | `npm run lint:esm`, échoue si `require()` est présent dans `src/` |
 | 4 | Migrations | `npx prisma migrate deploy` contre un PostgreSQL éphémère (service GitHub Actions) |
 | 5 | Tests | Jest et Supertest sur `auth-service` et `event-service` |
-| 6 | Build frontend | `npm run build` |
+| 6 | Build frontend | `npm run generate:api` (genere `auth-service/openapi.json`, `event-service/openapi.json` puis le client Orval dans `frontend/src/api/generated/`, voir [ADR 0011](knowledge-base/adr/0011-openapi-genere-orval.md)) puis `npm run build` |
 | 7 | Docker Build et Push | 3 images (`auth-service`, `event-service`, `gateway`) via `docker/build-push-action@v5`, tags `latest` et SHA du commit |
 | 8 | Deploy | Mise à jour de `IMAGE_TAG` côté Dokploy (force le re-téléchargement de l'image), webhook Dokploy, vérification de `/api/events` |
 

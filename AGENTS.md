@@ -25,7 +25,7 @@ Aucune de ces technologies ne se remplace sans une ADR validée par le Scrum Mas
 | ORM | Prisma | 6 |
 | Passerelle | Nginx | `nginx:alpine` |
 | Documentation API | swagger-ui-express + swagger-jsdoc | - |
-| Client API frontend | Orval (genere depuis l'OpenAPI de chaque service) | - |
+| Client API frontend | Orval (genere depuis l'OpenAPI d'auth-service et event-service, a etendre aux 2 autres services une fois implementes) | - |
 | Tests backend | Jest + Supertest | - |
 | Tests frontend | Vitest | - |
 | Tests bout en bout | Playwright | - |
