@@ -46,73 +46,66 @@ EventHub répond à ces quatre points par une plateforme web unique permettant d
 
 ### Fonctionnalités
 
-| Domaine | Fonctionnalités |
-|---|---|
-| Événements | Création, modification, suppression, listage avec filtres par date et par lieu, détail, vérification des places restantes |
-| Participants | Création de compte, modification de profil, suppression, listage, recherche par email ou par nom |
-| Inscriptions | Inscription à un événement, annulation, liste des inscrits d'un événement, liste des événements d'un participant, statistiques, détection des places disponibles avant inscription |
-| Authentification | Inscription, connexion, jetons JWT, deux rôles, protection des routes sensibles |
+| Domaine | Fonctionnalités | Statut |
+|---|---|---|
+| Authentification | Inscription, connexion, jetons JWT, deux rôles, protection des routes sensibles | Implémenté |
+| Événements | Listage public avec pagination, création (authentifiée) | Implémenté partiellement, voir section 2 |
+| Participants | Création de compte, modification de profil, suppression, listage, recherche | Non commencé |
+| Inscriptions | Inscription à un événement, annulation, statistiques | Non commencé |
 
 ---
 
 ## 2. Architecture
 
-Quatre services backend indépendants, une interface web, une passerelle, quatre
-bases de données.
+Architecture cible : quatre services backend indépendants, une interface web, une
+passerelle, quatre bases de données. Voir la colonne Statut ci-dessous pour ce qui
+est réellement implémenté aujourd'hui.
 
 ```mermaid
 graph TB
     U[Navigateur]
     T["Traefik<br/>TLS, venuva.xyz<br/>géré par Dokploy"]
-    NG["nginx<br/>sert le build Vue<br/>proxifie /api/*"]
+    NG["gateway (nginx)<br/>sert le build Vue<br/>proxifie /api/*"]
 
     AU["auth-service :3004"]
-    EV["events-service :3001"]
-    PA["participants-service :3002"]
-    RE["registrations-service :3003"]
+    EV["event-service :3001"]
+    PA["participants-service :3002<br/>(non implémenté)"]
+    RE["registrations-service :3003<br/>(non implémenté)"]
 
     AUDB[("auth-db")]
     EVDB[("events-db")]
-    PADB[("participants-db")]
-    REDB[("registrations-db")]
 
     U -->|HTTPS| T --> NG
     NG --> AU
     NG --> EV
-    NG --> PA
-    NG --> RE
+    NG -.-> PA
+    NG -.-> RE
     AU --> AUDB
     EV --> EVDB
-    PA --> PADB
-    RE --> REDB
-    RE -.->|capacité| EV
-    RE -.->|participant| PA
-    EV -.->|nombre d'inscrits| RE
 ```
 
 ### Principes
 
-- **Une base par service.** Quatre conteneurs PostgreSQL distincts. Aucun service ne
-  lit la base d'un autre. Les échanges passent exclusivement par API REST.
-- **Un seul point d'entrée.** Seul le conteneur `nginx` est exposé. Les quatre
-  services et les quatre bases restent sur un réseau Docker privé, sans port publié
-  sur l'hôte.
-- **Authentification centralisée.** `auth-service` émet les jetons JWT, les trois
-  autres services les vérifient localement avec un secret partagé.
+- **Une base par service.** Un conteneur PostgreSQL par service backend, jamais
+  partagé. Les échanges entre services passent exclusivement par API REST.
+- **Un seul point d'entrée.** Seul le conteneur `gateway` (nginx) est exposé sur
+  l'hôte. Les services et les bases restent sur des réseaux Docker privés.
+- **Authentification centralisée.** `auth-service` émet les jetons JWT ; les
+  autres services les vérifient localement avec le secret partagé `JWT_SECRET`.
 
 Le détail figure dans
 [knowledge-base/architecture/vue-ensemble.md](knowledge-base/architecture/vue-ensemble.md).
 
 ### Microservices
 
-| Service | Port | Responsabilité |
-|---|---|---|
-| `auth-service` | 3004 | Comptes, connexion, émission et vérification des jetons |
-| `events-service` | 3001 | Cycle de vie des événements, calcul des places restantes |
-| `participants-service` | 3002 | Profils des participants, recherche |
-| `registrations-service` | 3003 | Inscriptions, annulations, statistiques |
+| Service | Dossier | Port | Statut |
+|---|---|---|---|
+| `auth-service` | `auth-service/` | 3004 | Implémenté : Prisma, ES modules, tests, Dockerfile |
+| `events-service` | `event-service/` (nom de dossier à corriger, voir `AGENTS.md`) | 3001 | Implémenté partiellement : `GET /events` public paginé, `POST /events` authentifié. Pas encore de `GET/PUT/DELETE /events/:id` ni de filtres |
+| `participants-service` | `participants-service/` | 3002 | Squelette seulement (dépendances déclarées, aucun code) |
+| `registrations-service` | `registrations-service/` | 3003 | Squelette seulement (dépendances déclarées, aucun code) |
 
-Le contrat complet de chaque service se trouve dans
+Le contrat complet visé pour chaque service se trouve dans
 [knowledge-base/api/](knowledge-base/api/).
 
 ---
@@ -121,12 +114,14 @@ Le contrat complet de chaque service se trouve dans
 
 | Outil | Version minimale | Nécessaire pour |
 |---|---|---|
-| Docker Engine | 24 | Lancement conteneurisé |
+| Docker Engine | 24 | Lancement conteneurisé, Prisma (génération du client) |
 | Docker Compose | v2 | Orchestration |
 | Node.js | 24 | Lancement manuel |
 | npm | 10 | Lancement manuel |
-| PostgreSQL | 16 | Lancement manuel sans Docker |
 | Git | 2.40 | Récupération du code |
+
+Une base PostgreSQL locale n'est pas nécessaire : chaque service peut démarrer sa
+propre base en conteneur via `npm run dx` (voir section 4).
 
 Vérification :
 
@@ -138,85 +133,68 @@ docker --version && docker compose version && node --version && npm --version
 
 ## 4. Installation et lancement manuel
 
-Sans Docker. Utile pour développer avec rechargement à chaud.
-
 ### 4.1 Récupérer le code
 
 ```bash
 git clone https://github.com/traorecheikh/eventis.git
 cd eventis
-cp .env.example .env
 ```
 
-Éditer `.env` et renseigner les mots de passe ainsi que le secret JWT :
+### 4.2 Lancer auth-service et event-service
+
+Chaque service a une commande unique qui démarre sa base PostgreSQL en conteneur
+Docker (créée automatiquement au premier lancement), synchronise le schéma Prisma,
+génère un `.env` de développement si absent, puis lance le serveur avec
+rechargement à chaud :
 
 ```bash
-openssl rand -base64 48    # valeur de JWT_SECRET
-openssl rand -base64 24    # valeur de chaque mot de passe de base
+cd auth-service && npm install && npm run dx     # port 3004
 ```
 
-### 4.2 Préparer les quatre bases
-
-Avec un PostgreSQL local :
+Dans un second terminal :
 
 ```bash
-createdb auth && createdb events && createdb participants && createdb registrations
-psql -d auth          -f auth-service/sql/schema.sql
-psql -d events        -f events-service/sql/schema.sql
-psql -d participants  -f participants-service/sql/schema.sql
-psql -d registrations -f registrations-service/sql/schema.sql
+cd event-service && npm install && npm run dx    # port 3001
 ```
 
-Plus simple, les bases en conteneurs et les services en local :
+### 4.3 Lancer l'interface
 
 ```bash
-docker compose up -d auth-db events-db participants-db registrations-db
+cd frontend && npm install && npm run dev         # port 5173
 ```
 
-### 4.3 Lancer les quatre services
+Socle scaffoldé (Vue 3, Vite, Tailwind, Reka UI) : une seule vue de vérification,
+aucun écran produit. L'application est disponible sur `http://localhost:5173`.
 
-Un terminal par service.
-
-```bash
-cd auth-service          && npm install && npm run dev    # port 3004
-cd events-service        && npm install && npm run dev    # port 3001
-cd participants-service  && npm install && npm run dev    # port 3002
-cd registrations-service && npm install && npm run dev    # port 3003
-```
-
-### 4.4 Lancer l'interface
+### 4.4 Vérifier
 
 ```bash
-cd frontend && npm install && npm run dev                 # port 5173
-```
-
-L'application est disponible sur `http://localhost:5173`.
-
-### 4.5 Vérifier
-
-```bash
-curl http://localhost:3001/health
-curl http://localhost:3002/health
-curl http://localhost:3003/health
 curl http://localhost:3004/health
+curl http://localhost:3001/health
 ```
 
 Chaque appel doit renvoyer `{"status":"ok", ...}`.
+
+### 4.5 participants-service et registrations-service
+
+Squelettes uniquement (`package.json` avec les dépendances attendues, dossiers
+vides). Voir `participants-service/README.md` et `registrations-service/README.md`
+pour la marche à suivre.
 
 ---
 
 ## 5. Instructions Docker
 
-Chaque composant possède son propre `Dockerfile`.
+`auth-service`, `event-service` et `gateway` ont chacun leur propre `Dockerfile`.
+`participants-service` et `registrations-service` n'en ont pas encore, faute de
+code.
 
 ### 5.1 Construire une image
 
 ```bash
-docker build -t eventhub-auth          ./auth-service
-docker build -t eventhub-events        ./events-service
-docker build -t eventhub-participants  ./participants-service
-docker build -t eventhub-registrations ./registrations-service
-docker build -t eventhub-frontend      ./frontend
+docker build -t eventhub-auth  ./auth-service
+docker build -t eventhub-event ./event-service
+docker build -f gateway/Dockerfile -t eventhub-gateway .   # contexte = racine, construit aussi frontend/
 ```
 
 ### 5.2 Lancer un service seul
@@ -224,100 +202,106 @@ docker build -t eventhub-frontend      ./frontend
 ```bash
 docker network create eventhub-net
 
-docker run -d --name events-db --network eventhub-net \
-  -e POSTGRES_USER=events_user \
+docker run -d --name auth-db --network eventhub-net \
+  -e POSTGRES_USER=auth_user \
   -e POSTGRES_PASSWORD=motdepasse \
-  -e POSTGRES_DB=events \
-  -v events_data:/var/lib/postgresql/data \
+  -e POSTGRES_DB=auth \
+  -v auth_data:/var/lib/postgresql/data \
   postgres:16-alpine
 
-docker run -d --name events-service --network eventhub-net \
-  -e DATABASE_URL=postgres://events_user:motdepasse@events-db:5432/events \
+docker run -d --name auth-service --network eventhub-net \
+  -e DATABASE_URL=postgresql://auth_user:motdepasse@auth-db:5432/auth \
   -e JWT_SECRET=votre_secret \
-  -e PORT=3001 \
-  -p 3001:3001 \
-  eventhub-events
+  -e PORT=3004 \
+  -p 3004:3004 \
+  eventhub-auth
 ```
 
 ### 5.3 Choix de conteneurisation
 
 | Pratique | Mise en oeuvre |
 |---|---|
-| Image de base légère | `node:24-alpine` pour les services, `nginx:alpine` pour le frontend |
-| Construction multi-étapes | Étape de dépendances puis étape d'exécution. Le frontend construit avec Node puis ne conserve que Nginx et les fichiers statiques. |
-| Utilisateur non privilégié | `USER node`, les conteneurs ne tournent pas en root |
+| Image de base légère | `node:24-alpine` pour les services, `nginx:alpine` pour la passerelle |
+| Construction multi-étapes | Étape de dépendances puis étape d'exécution. `gateway` construit le frontend avec Node puis ne conserve que Nginx et les fichiers statiques. |
+| Utilisateur non privilégié | `USER node` sur les services Node, les conteneurs ne tournent pas en root |
 | Variables d'environnement | Aucune valeur en dur, toute la configuration est injectée |
-| Sonde de santé | Directive `HEALTHCHECK` interrogeant `/health` |
+| Sonde de santé | Directive `HEALTHCHECK` interrogeant `/health` sur `127.0.0.1` (pas `localhost`, voir `knowledge-base/runbooks/depannage.md`) |
 | Contexte de build réduit | `.dockerignore` excluant `node_modules`, `.git` et les tests |
 | Volumes persistants | Un volume nommé par base de données |
-
-Détail dans
-[knowledge-base/specs/dockerfile-type.md](knowledge-base/specs/dockerfile-type.md).
 
 ---
 
 ## 6. Instructions Docker Compose
 
-Méthode recommandée. Une seule commande lance l'ensemble de la plateforme.
+Deux fichiers compose :
 
-### 6.1 Démarrer
+- `docker-compose.yml` : production, télécharge des images prêtes depuis GHCR
+  (`ghcr.io/traorecheikh/eventis-<service>`), ne construit rien.
+- `docker-compose.dev.yml` : override de développement local, construit les
+  images depuis les sources.
+
+### 6.1 Démarrer en local (construction depuis les sources)
 
 ```bash
 cp .env.example .env      # puis renseigner les valeurs
-docker compose up -d
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
 docker compose ps
 ```
 
-Les dix conteneurs doivent afficher `(healthy)`. Le premier démarrage prend deux à
-trois minutes, le temps de l'initialisation des bases.
+Les six conteneurs doivent afficher `(healthy)` : `auth-db`, `auth-service`,
+`events-db`, `event-service`, `gateway`, `uptime-kuma`.
 
 | URL | Contenu |
 |---|---|
-| `http://localhost` | Interface web |
-| `http://localhost/api/events` | API événements |
-| `http://localhost/api/auth/docs` | Swagger auth-service |
-| `http://localhost/api/events/docs` | Swagger events-service |
-| `http://localhost/api/participants/docs` | Swagger participants-service |
-| `http://localhost/api/registrations/docs` | Swagger registrations-service |
+| `http://localhost` | Interface web (socle) |
+| `http://localhost/api/events` | API événements (liste publique paginée) |
+| `http://localhost/api/auth/register` | Inscription |
+| `http://localhost:3010` | Uptime Kuma (supervision, moniteurs pas encore configurés) |
 
-### 6.2 Commandes courantes
+### 6.2 Démarrer en production (images GHCR)
 
 ```bash
-docker compose logs -f events-service     # suivre un service
-docker compose restart events-service     # redémarrer
-docker compose build events-service       # reconstruire après modification
+docker compose up -d
+```
+
+Nécessite que les images `eventis-auth-service`, `eventis-event-service` et
+`eventis-gateway` existent sur GHCR (publiées automatiquement par `cd.yml` sur
+push vers `main`) et soient accessibles (publiques, ou un registry privé
+configuré côté déploiement).
+
+### 6.3 Commandes courantes
+
+```bash
+docker compose logs -f event-service      # suivre un service
+docker compose restart event-service      # redémarrer
 docker compose down                       # arrêter, conserver les données
 docker compose down -v                    # arrêter et détruire les volumes
 ```
 
-### 6.3 Contenu de l'orchestration
+### 6.4 Contenu de l'orchestration
 
 | Élément | Détail |
 |---|---|
-| Services | 4 services Node, 4 PostgreSQL, 1 Nginx, 1 supervision |
-| Réseaux | `frontend` et `backend`. Seul Nginx appartient aux deux. |
-| Volumes | `auth_data`, `events_data`, `participants_data`, `registrations_data` |
-| Sondes | Sur chaque conteneur, avec `depends_on: condition: service_healthy` |
+| Services | 2 services Node (`auth-service`, `event-service`), 2 PostgreSQL, 1 passerelle Nginx (avec le build Vue intégré), 1 Uptime Kuma |
+| Réseaux | `frontend` et `backend`. Seul `gateway` appartient aux deux. |
+| Volumes | `auth_data`, `events_data`, `uptime_kuma_data` |
+| Sondes | Sur chaque conteneur applicatif, avec `depends_on: condition: service_healthy` |
 | Redémarrage | `restart: unless-stopped` |
-| Limites | Mémoire plafonnée par conteneur |
 
-### 6.4 Jeu de données de démonstration
-
-```bash
-docker compose exec events-db psql -U events_user -d events -f /seed/events.sql
-```
+`participants-service` et `registrations-service` n'y figurent pas encore : pas
+de code, donc pas d'image à construire ni de base à déclarer.
 
 ---
 
 ## 7. Pipeline GitHub Actions
 
-Trois workflows dans `.github/workflows/`.
+Deux workflows dans `.github/workflows/`. Un troisième (`security.yml`, CodeQL et
+Semgrep) est mentionné dans les specs mais pas encore écrit.
 
 | Workflow | Déclenchement | Rôle |
 |---|---|---|
-| `ci.yml` | push et PR sur `develop` et `feature/*` | Lint, tests, build |
-| `cd.yml` | push sur `main` | Chaîne complète jusqu'au déploiement |
-| `security.yml` | PR et hebdomadaire | CodeQL, Semgrep, audit des dépendances |
+| `ci.yml` | push sur `develop`/`feature/*`, PR vers `develop`/`main` | Job indépendant par service (path filters), lint et tests |
+| `cd.yml` | push sur `main` | Tests, build et publication des images sur GHCR, mise à jour du tag d'image côté Dokploy, déclenchement du webhook, vérification post-déploiement |
 
 ### 7.1 Étapes du pipeline
 
@@ -325,21 +309,23 @@ Trois workflows dans `.github/workflows/`.
 |---|---|---|
 | 1 | Checkout | `actions/checkout@v4` |
 | 2 | Setup | `actions/setup-node@v4`, Node 24, cache npm |
-| 3 | Tests | Jest et Supertest sur les 4 services, Vitest sur le frontend, base PostgreSQL éphémère |
-| 4 | Build | `npm ci` puis construction du bundle Vue |
-| 5 | Docker Build | Construction des 5 images via `docker/build-push-action@v5` |
-| 6 | Docker Push | Publication sur `ghcr.io` avec le `GITHUB_TOKEN` |
-| 7 | Deploy | Appel du webhook Dokploy, puis vérification de `/api/events` |
+| 3 | Garde ES modules | `npm run lint:esm`, échoue si `require()` est présent dans `src/` |
+| 4 | Migrations | `npx prisma migrate deploy` contre un PostgreSQL éphémère (service GitHub Actions) |
+| 5 | Tests | Jest et Supertest sur `auth-service` et `event-service` |
+| 6 | Build frontend | `npm run build` |
+| 7 | Docker Build et Push | 3 images (`auth-service`, `event-service`, `gateway`) via `docker/build-push-action@v5`, tags `latest` et SHA du commit |
+| 8 | Deploy | Mise à jour de `IMAGE_TAG` côté Dokploy (force le re-téléchargement de l'image), webhook Dokploy, vérification de `/api/events` |
 
 ### 7.2 Contrôles de qualité
 
 | Contrôle | Outil | Effet |
 |---|---|---|
-| Style | ESLint et Prettier | Bloque la PR |
-| Couverture | Jest, seuil à 60 pour cent | Bloque la PR |
-| Vulnérabilités des images | Trivy | Signale, ne bloque pas |
-| Vulnérabilités des dépendances | `npm audit` | Signale |
-| Analyse statique | CodeQL et Semgrep | Signale |
+| ES modules obligatoires | Script `scripts/check-no-require.js` | Bloque le job |
+| Migrations Prisma valides | `prisma migrate deploy` | Bloque le job |
+| Tests unitaires et d'intégration | Jest, Supertest | Bloque le job |
+| Couverture | Jest `--coverage` (mesurée, seuil non encore imposé) | Signale |
+
+ESLint, Prettier, Trivy, CodeQL et Semgrep ne sont pas encore intégrés au pipeline.
 
 ### 7.3 Stratégie de branches
 
@@ -349,15 +335,17 @@ Trois workflows dans `.github/workflows/`.
 | `develop` | Intégration continue, cible par défaut des PR |
 | `feature/*` | Développement d'une fonctionnalité |
 
-`main` et `develop` sont protégées : aucun push direct, une approbation obligatoire,
-CI verte obligatoire.
+`main` et `develop` sont protégées : aucun push direct, une approbation
+obligatoire, et les checks CI (`detect-changes`, `auth-service`, `event-service`,
+`frontend`, `gateway`) doivent être verts pour merger.
 
 ### 7.4 Déploiement
 
-Les images sont construites par GitHub Actions et publiées sur GHCR. Le VPS ne
-construit rien : il télécharge des images prêtes. La dernière étape du workflow
-appelle le webhook Dokploy, qui déclenche un `docker compose pull` suivi d'un
-redéploiement.
+Les images sont construites par GitHub Actions et publiées sur GHCR, taguées avec
+le SHA du commit (pas seulement `latest`) pour permettre un rollback ciblé. Le VPS
+ne construit rien : il télécharge des images prêtes. La dernière étape du workflow
+met à jour la variable d'environnement `IMAGE_TAG` de l'application Dokploy via son
+API, puis appelle le webhook de déploiement.
 
 Détail dans
 [knowledge-base/specs/pipeline-ci-cd.md](knowledge-base/specs/pipeline-ci-cd.md).
@@ -368,37 +356,40 @@ Détail dans
 
 ```
 eventis/
-├── auth-service/               service d'authentification
+├── auth-service/               service d'authentification, implémenté
 │   ├── src/
-│   ├── tests/
-│   ├── sql/schema.sql
+│   ├── prisma/                 schema.prisma, migrations
+│   ├── tests/                  unit/, integration/
+│   ├── scripts/                dx.js (dev local), check-no-require.js (garde ESM)
 │   ├── Dockerfile
 │   └── package.json
-├── events-service/             service des événements
-├── participants-service/       service des participants
-├── registrations-service/      service des inscriptions
-├── frontend/                   interface Vue 3
+├── event-service/               service des événements, implémenté partiellement
+│   └── (même structure que auth-service)
+├── participants-service/       squelette seulement, aucun code
+├── registrations-service/      squelette seulement, aucun code
+├── frontend/                   socle Vue 3 scaffoldé, aucun écran produit
 │   ├── src/
-│   ├── nginx.conf              passerelle et service des fichiers statiques
-│   ├── Dockerfile
+│   ├── vite.config.js
 │   └── package.json
-├── e2e/                        tests Playwright
-├── seed/                       données de démonstration
+├── gateway/                    passerelle Nginx
+│   ├── nginx.conf
+│   └── Dockerfile               construit aussi frontend/ (multi-étapes)
 ├── .github/
-│   ├── workflows/              ci.yml, cd.yml, security.yml
+│   ├── workflows/               ci.yml, cd.yml
 │   ├── ISSUE_TEMPLATE/
 │   └── PULL_REQUEST_TEMPLATE.md
 ├── knowledge-base/             documentation interne
 │   ├── adr/                    décisions d'architecture
-│   ├── api/                    contrats des 4 services
+│   ├── api/                    contrats visés des 4 services
 │   ├── architecture/           diagrammes et modèles de données
 │   ├── runbooks/               procédures d'exploitation
 │   ├── scrum/                  pilotage du projet
 │   └── specs/                  spécifications Docker et CI/CD
-├── rapport/                    sources LaTeX du rapport
-├── docker-compose.yml
+├── rapport/                    sources du rapport
+├── docker-compose.yml           production, images GHCR
+├── docker-compose.dev.yml       override developpement, build local
 ├── .env.example
-├── AGENTS.md                   règles de travail de l'équipe
+├── AGENTS.md                   règles de travail de l'équipe, état du dépôt à jour
 ├── CLAUDE.md                   lien symbolique vers AGENTS.md
 └── README.md
 ```
@@ -411,45 +402,48 @@ eventis/
 
 | Technologie | Version | Rôle |
 |---|---|---|
-| Node.js | 24 LTS | Exécution |
-| Express | 4 | Framework HTTP |
+| Node.js | 24 LTS | Exécution, ES modules (`import`/`export`) |
+| Express | 5 | Framework HTTP |
+| Prisma | 6 | ORM, migrations versionnées (voir [ADR 0010](knowledge-base/adr/0010-prisma-orm.md)) |
 | PostgreSQL | 16 | Base de données relationnelle |
-| node-postgres | 8 | Client PostgreSQL |
 | jsonwebtoken | 9 | Émission et vérification des JWT |
-| bcrypt | 5 | Hachage des mots de passe |
-| swagger-jsdoc, swagger-ui-express | 6, 5 | Documentation d'API |
+| bcrypt | 6 | Hachage des mots de passe |
 
 ### Frontend
 
 | Technologie | Version | Rôle |
 |---|---|---|
 | Vue.js | 3 | Framework d'interface |
-| Vite | 5 | Outil de construction |
+| Vite | 8 | Outil de construction |
 | Vue Router | 4 | Navigation |
 | Pinia | 2 | Gestion d'état |
+| Tailwind CSS | 4 | Style |
+| Reka UI | - | Composants accessibles (headless) |
+| lucide-vue-next | - | Icônes |
+| vue-sonner | - | Notifications |
+| @vueuse/motion | - | Transitions |
 | Axios | 1 | Client HTTP |
 
 ### Tests
 
-| Technologie | Rôle |
-|---|---|
-| Jest | Tests unitaires backend |
-| Supertest | Tests d'intégration des routes |
-| Vitest | Tests unitaires frontend |
-| Playwright | Tests de bout en bout |
+| Technologie | Rôle | Statut |
+|---|---|---|
+| Jest | Tests unitaires backend | Implémenté (`auth-service`, `event-service`) |
+| Supertest | Tests d'intégration HTTP | Implémenté |
+| Vitest | Tests unitaires frontend | Non commencé |
+| Playwright | Tests de bout en bout | Non commencé |
 
 ### Infrastructure
 
 | Technologie | Rôle |
 |---|---|
 | Docker et Docker Compose | Conteneurisation et orchestration |
-| Nginx | Service des fichiers statiques et passerelle |
+| Nginx | Passerelle et service des fichiers statiques |
 | GitHub Actions | Intégration et livraison continues |
 | GitHub Container Registry | Registre d'images |
-| Dokploy | Plateforme de déploiement sur VPS |
+| Dokploy | Plateforme de déploiement sur VPS, pilotée aussi via son API |
 | Traefik | Entrée HTTPS et certificats Let's Encrypt |
-| Uptime Kuma | Supervision |
-| Trivy, CodeQL, Semgrep | Analyse de sécurité |
+| Uptime Kuma | Supervision (conteneur en place, moniteurs pas encore configurés) |
 
 ---
 
@@ -464,7 +458,7 @@ eventis/
 | Déployer ou revenir en arrière | [runbooks/deployer.md](knowledge-base/runbooks/deployer.md), [rollback.md](knowledge-base/runbooks/rollback.md) |
 | Un conteneur ne démarre pas | [runbooks/depannage.md](knowledge-base/runbooks/depannage.md) |
 | Qui fait quoi | [scrum/repartition-taches.md](knowledge-base/scrum/repartition-taches.md) |
-| Règles de travail | [AGENTS.md](AGENTS.md) |
+| Règles de travail et état réel du dépôt | [AGENTS.md](AGENTS.md), section "État du dépôt" |
 
 ---
 

@@ -1,7 +1,9 @@
 import express from "express";
 import cors from "cors";
+import swaggerUi from "swagger-ui-express";
 
 import eventsRoutes from "./routes/events.js";
+import swaggerSpec from "./config/swagger.js";
 
 const app = express();
 
@@ -18,5 +20,10 @@ app.get("/health", (req, res) => {
 });
 
 app.use("/api/events", eventsRoutes);
+
+app.get("/api/events/docs.json", (req, res) => {
+    res.json(swaggerSpec);
+});
+app.use("/api/events/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 export default app;
