@@ -21,8 +21,8 @@ axiosInstance.interceptors.request.use((config) => {
     return config;
 });
 
-export const customInstance = (config) => {
-    return axiosInstance(config).then((response) => response.data);
+export const customInstance = (config, options) => {
+    return axiosInstance({ ...config, ...options }).then((response) => response.data);
 };
 
 export default customInstance;

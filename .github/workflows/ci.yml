@@ -126,9 +126,18 @@ jobs:
         with:
           node-version: 24
           cache: npm
-          cache-dependency-path: frontend/package-lock.json
+          cache-dependency-path: |
+            auth-service/package-lock.json
+            event-service/package-lock.json
+            frontend/package-lock.json
 
       - run: npm ci
+        working-directory: auth-service
+      - run: npm ci
+        working-directory: event-service
+      - run: npm ci
+
+      - run: npm run generate:api
       - run: npm run build
 
   gateway:

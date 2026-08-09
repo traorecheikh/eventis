@@ -21,6 +21,33 @@ describe("documentation OpenAPI", () => {
         );
     });
 
+    test("le schema AuthResponse est complet (utilise par register et le client genere)", () => {
+        return request(app).get("/api/auth/docs.json").then((res) => {
+            const authResponse = res.body.components.schemas.AuthResponse;
+
+            expect(authResponse).toBeDefined();
+            expect(authResponse.required).toEqual(
+                expect.arrayContaining(["user", "token", "expiresIn"])
+            );
+        });
+    });
+
+    test("la reponse 200 de /login declare user et token comme requis", async () => {
+        const res = await request(app).get("/api/auth/docs.json");
+        const loginResponseSchema = res.body.paths["/login"].post.responses["200"].content["application/json"].schema;
+
+        expect(loginResponseSchema.required).toEqual(
+            expect.arrayContaining(["user", "token"])
+        );
+    });
+
+    test("/me exige l'authentification bearer", async () => {
+        const res = await request(app).get("/api/auth/docs.json");
+        const meOperation = res.body.paths["/me"].get;
+
+        expect(meOperation.security).toEqual([{ bearerAuth: [] }]);
+    });
+
     test("GET /api/auth/docs sert l'interface Swagger UI", async () => {
         const res = await request(app).get("/api/auth/docs/");
 

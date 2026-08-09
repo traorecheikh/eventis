@@ -128,11 +128,29 @@ describe("POST /api/events", () => {
         expect(res.status).toBe(400);
     });
 
-    test("rejette une date numerique (epoch ms), meme dans le futur", async () => {
+    test("rejette une date numerique (epoch ms), meme representant le meme instant valide", async () => {
         const res = await request(app)
             .post("/api/events")
             .set("Authorization", `Bearer ${token()}`)
-            .send({ ...VALID_EVENT, date: 99999999999999 });
+            .send({ ...VALID_EVENT, date: Date.parse(VALID_EVENT.date) });
+
+        expect(res.status).toBe(400);
+    });
+
+    test("rejette une date au format non ISO 8601 (ex: format US)", async () => {
+        const res = await request(app)
+            .post("/api/events")
+            .set("Authorization", `Bearer ${token()}`)
+            .send({ ...VALID_EVENT, date: "01/01/2099" });
+
+        expect(res.status).toBe(400);
+    });
+
+    test("rejette un title non-chaine", async () => {
+        const res = await request(app)
+            .post("/api/events")
+            .set("Authorization", `Bearer ${token()}`)
+            .send({ ...VALID_EVENT, title: 12345 });
 
         expect(res.status).toBe(400);
     });

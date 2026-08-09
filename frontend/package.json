@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "generate:api": "orval"
+    "generate:api:specs": "npm run docs:generate --prefix ../auth-service && npm run docs:generate --prefix ../event-service",
+    "generate:api": "npm run generate:api:specs && orval"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.3",

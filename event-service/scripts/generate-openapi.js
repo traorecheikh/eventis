@@ -1,6 +1,9 @@
 import { writeFileSync } from "node:fs";
+import { resolve } from "node:path";
 import swaggerSpec from "../src/config/swagger.js";
 
-writeFileSync("./openapi.json", JSON.stringify(swaggerSpec, null, 2) + "\n");
+const outputPath = resolve(import.meta.dirname, "../openapi.json");
 
-console.log("openapi.json genere depuis les annotations @openapi de src/routes/.");
+writeFileSync(outputPath, JSON.stringify(swaggerSpec, null, 2) + "\n");
+
+console.log(`openapi.json genere depuis les annotations @openapi de src/routes/ (${outputPath}).`);
