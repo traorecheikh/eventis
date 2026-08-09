@@ -10,6 +10,7 @@ import authenticate from "../middleware/auth.middleware.js";
  *   schemas:
  *     User:
  *       type: object
+ *       required: [id, email, role, createdAt]
  *       properties:
  *         id:
  *           type: integer
@@ -22,8 +23,28 @@ import authenticate from "../middleware/auth.middleware.js";
  *         createdAt:
  *           type: string
  *           format: date-time
+ *     TokenClaims:
+ *       type: object
+ *       description: Contenu decode du jeton JWT
+ *       required: [id, email, role, iat, exp]
+ *       properties:
+ *         id:
+ *           type: integer
+ *         email:
+ *           type: string
+ *           format: email
+ *         role:
+ *           type: string
+ *           enum: [organisateur, participant]
+ *         iat:
+ *           type: integer
+ *           description: Horodatage d'emission (Unix, secondes)
+ *         exp:
+ *           type: integer
+ *           description: Horodatage d'expiration (Unix, secondes)
  *     AuthResponse:
  *       type: object
+ *       required: [user, token, expiresIn]
  *       properties:
  *         user:
  *           $ref: "#/components/schemas/User"
@@ -34,6 +55,7 @@ import authenticate from "../middleware/auth.middleware.js";
  *           description: Duree de validite du jeton en secondes
  *     Error:
  *       type: object
+ *       required: [error]
  *       properties:
  *         error:
  *           type: string
@@ -146,12 +168,12 @@ router.post("/login", authController.login);
  *           application/json:
  *             schema:
  *               type: object
+ *               required: [message, user]
  *               properties:
  *                 message:
  *                   type: string
  *                 user:
- *                   type: object
- *                   description: Contenu decode du jeton JWT
+ *                   $ref: "#/components/schemas/TokenClaims"
  *       401:
  *         description: Jeton absent, invalide ou expire
  *         content:

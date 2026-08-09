@@ -20,8 +20,10 @@ la documentation d'API manquait reellement.
    `/api/<service>/docs.json` (JSON brut, pour un outil de generation
    externe).
 2. **Le client frontend est genere, jamais ecrit a la main.** Orval lit le
-   JSON expose par chaque service et genere un client Axios type dans
-   `frontend/src/api/generated/<service>/`.
+   fichier `openapi.json` local ecrit par `npm run docs:generate` dans
+   chaque service (pas l'endpoint HTTP `/docs.json`, pour ne pas exiger que
+   les services tournent au moment de la generation cote frontend) et
+   genere un client Axios type dans `frontend/src/api/generated/<service>/`.
 3. Ni `openapi.json` ni `frontend/src/api/generated/` ne sont committes (voir
    `.gitignore`). Ce sont des artefacts reconstructibles a l'identique depuis
    les annotations JSDoc, comme un `dist/` de build.

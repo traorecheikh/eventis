@@ -12,6 +12,7 @@ const MAX_PAGE_SIZE = 100;
  *   schemas:
  *     Event:
  *       type: object
+ *       required: [id, title, date, location, maxCapacity, creatorId, createdAt, updatedAt]
  *       properties:
  *         id:
  *           type: integer
@@ -37,6 +38,7 @@ const MAX_PAGE_SIZE = 100;
  *           format: date-time
  *     Pagination:
  *       type: object
+ *       required: [page, limit, total, totalPages]
  *       properties:
  *         page:
  *           type: integer
@@ -48,6 +50,7 @@ const MAX_PAGE_SIZE = 100;
  *           type: integer
  *     Error:
  *       type: object
+ *       required: [error]
  *       properties:
  *         error:
  *           type: string
@@ -66,11 +69,13 @@ const MAX_PAGE_SIZE = 100;
  *         schema:
  *           type: integer
  *           default: 1
+ *           minimum: 1
  *       - in: query
  *         name: limit
  *         schema:
  *           type: integer
  *           default: 20
+ *           minimum: 1
  *           maximum: 100
  *     responses:
  *       200:
@@ -79,6 +84,7 @@ const MAX_PAGE_SIZE = 100;
  *           application/json:
  *             schema:
  *               type: object
+ *               required: [data, pagination]
  *               properties:
  *                 data:
  *                   type: array
@@ -209,6 +215,12 @@ router.post("/", auth, async (req, res) => {
     if (!location) {
         return res.status(400).json({
             error: "location est requis"
+        });
+    }
+
+    if (typeof date !== "string") {
+        return res.status(400).json({
+            error: "date doit etre une chaine au format ISO 8601"
         });
     }
 

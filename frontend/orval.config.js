@@ -6,6 +6,7 @@ export default {
             target: "./src/api/generated/auth",
             client: "axios",
             baseUrl: "/auth",
+            clean: true,
             override: {
                 mutator: {
                     path: "./src/api/axios-instance.js",
@@ -21,6 +22,7 @@ export default {
             target: "./src/api/generated/events",
             client: "axios",
             baseUrl: "/events",
+            clean: true,
             override: {
                 mutator: {
                     path: "./src/api/axios-instance.js",

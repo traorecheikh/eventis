@@ -1,3 +1,4 @@
+import { resolve } from "node:path";
 import swaggerJSDoc from "swagger-jsdoc";
 
 const options = {
@@ -21,7 +22,7 @@ const options = {
             }
         }
     },
-    apis: ["./src/routes/*.js"]
+    apis: [resolve(import.meta.dirname, "../routes/*.js")]
 };
 
 const swaggerSpec = swaggerJSDoc(options);
