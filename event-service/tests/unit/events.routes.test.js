@@ -128,6 +128,15 @@ describe("POST /api/events", () => {
         expect(res.status).toBe(400);
     });
 
+    test("rejette une date numerique (epoch ms), meme dans le futur", async () => {
+        const res = await request(app)
+            .post("/api/events")
+            .set("Authorization", `Bearer ${token()}`)
+            .send({ ...VALID_EVENT, date: 99999999999999 });
+
+        expect(res.status).toBe(400);
+    });
+
     test("rejette une maxCapacity non entiere ou negative", async () => {
         const res = await request(app)
             .post("/api/events")
