@@ -1,21 +1,18 @@
 # registrations-service
 
-Squelette seulement. Pas encore implemente.
+Microservice Express de gestion des inscriptions et de leurs statistiques. Le
+contrat complet est décrit dans
+[registrations-service.md](../knowledge-base/api/registrations-service.md).
 
-Contrat d'API a respecter avant d'ecrire le code :
-[knowledge-base/api/registrations-service.md](../knowledge-base/api/registrations-service.md).
+## Commandes
 
-A faire, dans l'ordre, en suivant le patron etabli par `auth-service/` et
-`event-service/` (Prisma, ES modules, meme structure de dossiers) :
+```bash
+npm ci
+npx prisma migrate deploy
+npm test
+npm run dev
+```
 
-1. `prisma/schema.prisma` a partir du modele de donnees du contrat.
-2. `src/config/prisma.js`, singleton `PrismaClient`.
-3. `src/middleware/auth.js`, copie de celui de `event-service`.
-4. `src/routes/`, `src/services/` selon les points d'entree du contrat.
-5. `src/server.js`, meme validation de variables d'environnement au demarrage
-   que les deux autres services.
-6. `Dockerfile`, copie adaptee de `auth-service/Dockerfile`.
-7. Tests unitaires (Prisma mocke) et d'integration (Postgres ephemere).
-8. Ajouter le service a `docker-compose.yml` et a `gateway/nginx.conf`
-   (decommenter la section prevue).
-9. Ajouter un job dans `.github/workflows/ci.yml`.
+Le service écoute sur le port `3003`. Il utilise uniquement les API REST de
+`participants-service` et `event-service`. Chaque inscription est vérifiée avant
+écriture et les annulations restent dans l'historique.

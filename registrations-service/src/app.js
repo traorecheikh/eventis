@@ -1,0 +1,10 @@
+import express from "express";
+import cors from "cors";
+import registrations from "./routes/registrations.js";
+const app = express();
+app.use(cors()); app.use(express.json());
+app.get("/health", (req, res) => res.json({ status: "ok", service: "registrations-service", database: "connected" }));
+app.use("/api/registrations", registrations);
+app.use((req, res) => res.status(404).json({ error: "Route introuvable" }));
+app.use((error, req, res, next) => { console.error("Erreur registrations-service:", error.message); res.status(500).json({ error: "Erreur interne du serveur" }); });
+export default app;

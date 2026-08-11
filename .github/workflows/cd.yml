@@ -80,9 +80,81 @@ jobs:
       - run: npx prisma migrate deploy
       - run: npm test
 
+  test-participants:
+    name: test / participants-service
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: participants_user
+          POSTGRES_PASSWORD: ci_password
+          POSTGRES_DB: participants
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U participants_user"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://participants_user:ci_password@localhost:5432/participants
+      JWT_SECRET: ci-secret-not-used-in-production
+    defaults:
+      run:
+        working-directory: participants-service
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: participants-service/package-lock.json
+      - run: npm ci
+      - run: npm run lint:esm
+      - run: npx prisma migrate deploy
+      - run: npm test
+
+  test-registrations:
+    name: test / registrations-service
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: registrations_user
+          POSTGRES_PASSWORD: ci_password
+          POSTGRES_DB: registrations
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U registrations_user"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://registrations_user:ci_password@localhost:5432/registrations
+      JWT_SECRET: ci-secret-not-used-in-production
+      EVENTS_SERVICE_URL: http://localhost:3001
+      PARTICIPANTS_SERVICE_URL: http://localhost:3002
+    defaults:
+      run:
+        working-directory: registrations-service
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: registrations-service/package-lock.json
+      - run: npm ci
+      - run: npm run lint:esm
+      - run: npx prisma migrate deploy
+      - run: npm test
+
   build-and-push:
     name: build-and-push
-    needs: [test-auth, test-events]
+    needs: [test-auth, test-events, test-participants, test-registrations]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -108,6 +180,22 @@ jobs:
           tags: |
             ghcr.io/traorecheikh/eventis-event-service:latest
             ghcr.io/traorecheikh/eventis-event-service:${{ github.sha }}
+
+      - uses: docker/build-push-action@v5
+        with:
+          context: ./participants-service
+          push: true
+          tags: |
+            ghcr.io/traorecheikh/eventis-participants-service:latest
+            ghcr.io/traorecheikh/eventis-participants-service:${{ github.sha }}
+
+      - uses: docker/build-push-action@v5
+        with:
+          context: ./registrations-service
+          push: true
+          tags: |
+            ghcr.io/traorecheikh/eventis-registrations-service:latest
+            ghcr.io/traorecheikh/eventis-registrations-service:${{ github.sha }}
 
       - uses: docker/build-push-action@v5
         with:

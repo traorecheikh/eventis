@@ -1,7 +1,7 @@
 {
   "name": "participants-service",
   "version": "1.0.0",
-  "description": "Microservice participants pour EventHub (squelette, pas encore implemente)",
+  "description": "Microservice de gestion des participants pour EventHub",
   "main": "src/server.js",
   "type": "module",
   "scripts": {
@@ -10,7 +10,7 @@
     "dx": "node scripts/dx.js",
     "lint:esm": "node scripts/check-no-require.js",
     "pretest": "npm run lint:esm",
-    "test": "node --experimental-vm-modules node_modules/.bin/jest --coverage"
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage"
   },
   "keywords": ["eventhub", "participants", "express"],
   "author": "Mamadou Seydou Soumountera",

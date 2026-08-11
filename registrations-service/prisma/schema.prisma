@@ -1,0 +1,21 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Registration {
+  id            Int       @id @default(autoincrement())
+  eventId       Int       @map("event_id")
+  participantId Int       @map("participant_id")
+  status        String    @default("confirmee") @db.VarChar(20)
+  registeredAt  DateTime  @default(now()) @map("registered_at") @db.Timestamptz
+  cancelledAt   DateTime? @map("cancelled_at") @db.Timestamptz
+
+  @@index([eventId], name: "idx_registrations_event")
+  @@index([participantId], name: "idx_registrations_participant")
+  @@map("registrations")
+}
