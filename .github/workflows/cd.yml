@@ -243,14 +243,20 @@ jobs:
             -H "X-GitHub-Event: push" \
             -d '{"ref":"refs/heads/main","repository":{"full_name":"traorecheikh/eventis"}}'
 
-      - name: Verifier /api/events apres deploiement
+      - name: Verifier les quatre API apres deploiement
         run: |
-          for i in $(seq 1 10); do
-            if curl -fsS https://venuva.xyz/api/events; then
-              exit 0
+          for endpoint in /api/events /api/auth/docs.json /api/participants/docs.json /api/registrations/docs.json; do
+            ok=0
+            for i in $(seq 1 10); do
+              if curl -fsS "https://venuva.xyz$endpoint"; then
+                ok=1
+                break
+              fi
+              echo "$endpoint : tentative $i/10 echouee, nouvelle tentative dans 10s..."
+              sleep 10
+            done
+            if [ "$ok" -ne 1 ]; then
+              echo "Verification de $endpoint echouee apres 10 tentatives, voir knowledge-base/runbooks/depannage.md"
+              exit 1
             fi
-            echo "Tentative $i/10 echouee, nouvelle tentative dans 10s..."
-            sleep 10
           done
-          echo "Verification echouee apres 10 tentatives, voir knowledge-base/runbooks/depannage.md"
-          exit 1

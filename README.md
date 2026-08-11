@@ -256,10 +256,9 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
 docker compose ps
 ```
 
-Les neuf conteneurs doivent afficher `(healthy)` : `auth-db`, `auth-service`,
+Les dix conteneurs doivent afficher `(healthy)` : `auth-db`, `auth-service`,
 `events-db`, `event-service`, `participants-db`, `participants-service`,
-`registrations-db`, `registrations-service`, `gateway` (`uptime-kuma` n'a pas
-de sonde de santé applicative, il démarre simplement `healthy`).
+`registrations-db`, `registrations-service`, `gateway`, `uptime-kuma`.
 
 | URL | Contenu |
 |---|---|

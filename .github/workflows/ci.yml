@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [develop, main]
 
+permissions:
+  contents: read
+
 jobs:
 
   changes:
@@ -34,6 +37,10 @@ jobs:
               - 'registrations-service/**'
             frontend:
               - 'frontend/**'
+              - 'auth-service/**'
+              - 'event-service/**'
+              - 'participants-service/**'
+              - 'registrations-service/**'
             gateway:
               - 'gateway/**'
               - 'frontend/**'
@@ -203,12 +210,18 @@ jobs:
           cache-dependency-path: |
             auth-service/package-lock.json
             event-service/package-lock.json
+            participants-service/package-lock.json
+            registrations-service/package-lock.json
             frontend/package-lock.json
 
       - run: npm ci
         working-directory: auth-service
       - run: npm ci
         working-directory: event-service
+      - run: npm ci
+        working-directory: participants-service
+      - run: npm ci
+        working-directory: registrations-service
       - run: npm ci
 
       - run: npm run generate:api
