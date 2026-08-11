@@ -49,9 +49,9 @@ EventHub répond à ces quatre points par une plateforme web unique permettant d
 | Domaine | Fonctionnalités | Statut |
 |---|---|---|
 | Authentification | Inscription, connexion, jetons JWT, deux rôles, protection des routes sensibles | Implémenté |
-| Événements | Listage public avec pagination, création (authentifiée) | Implémenté partiellement, voir section 2 |
-| Participants | Création de compte, modification de profil, suppression, listage, recherche | Non commencé |
-| Inscriptions | Inscription à un événement, annulation, statistiques | Non commencé |
+| Événements | Listage public avec pagination, création (authentifiée), lecture par id, disponibilité en temps réel | Implémenté partiellement, voir section 2 |
+| Participants | Création de compte, modification de profil, suppression, listage, recherche | Implémenté |
+| Inscriptions | Inscription à un événement, annulation, statistiques, refus du surbooking | Implémenté |
 
 ---
 
@@ -69,19 +69,25 @@ graph TB
 
     AU["auth-service :3004"]
     EV["event-service :3001"]
-    PA["participants-service :3002<br/>(non implémenté)"]
-    RE["registrations-service :3003<br/>(non implémenté)"]
+    PA["participants-service :3002"]
+    RE["registrations-service :3003"]
 
     AUDB[("auth-db")]
     EVDB[("events-db")]
+    PADB[("participants-db")]
+    REDB[("registrations-db")]
 
     U -->|HTTPS| T --> NG
     NG --> AU
     NG --> EV
-    NG -.-> PA
-    NG -.-> RE
+    NG --> PA
+    NG --> RE
     AU --> AUDB
     EV --> EVDB
+    PA --> PADB
+    RE --> REDB
+    RE -.->|verifie| EV
+    RE -.->|verifie| PA
 ```
 
 ### Principes
@@ -101,9 +107,9 @@ Le détail figure dans
 | Service | Dossier | Port | Statut |
 |---|---|---|---|
 | `auth-service` | `auth-service/` | 3004 | Implémenté : Prisma, ES modules, tests, Dockerfile |
-| `events-service` | `event-service/` (nom de dossier à corriger, voir `AGENTS.md`) | 3001 | Implémenté partiellement : `GET /events` public paginé, `POST /events` authentifié. Pas encore de `GET/PUT/DELETE /events/:id` ni de filtres |
-| `participants-service` | `participants-service/` | 3002 | Squelette seulement (dépendances déclarées, aucun code) |
-| `registrations-service` | `registrations-service/` | 3003 | Squelette seulement (dépendances déclarées, aucun code) |
+| `events-service` | `event-service/` (nom de dossier à corriger, voir `AGENTS.md`) | 3001 | Implémenté partiellement : `GET /events` public paginé, `POST /events` authentifié, `GET /events/:id`, `GET /events/:id/availability`. Pas encore de `PUT/DELETE /events/:id` ni de filtres |
+| `participants-service` | `participants-service/` | 3002 | Implémenté : CRUD, recherche, authentification JWT |
+| `registrations-service` | `registrations-service/` | 3003 | Implémenté : inscription, annulation, statistiques, refus du surbooking |
 
 Le contrat complet visé pour chaque service se trouve dans
 [knowledge-base/api/](knowledge-base/api/).
@@ -140,7 +146,7 @@ git clone https://github.com/traorecheikh/eventis.git
 cd eventis
 ```
 
-### 4.2 Lancer auth-service et event-service
+### 4.2 Lancer les quatre services backend
 
 Chaque service a une commande unique qui démarre sa base PostgreSQL en conteneur
 Docker (créée automatiquement au premier lancement), synchronise le schéma Prisma,
@@ -148,14 +154,20 @@ génère un `.env` de développement si absent, puis lance le serveur avec
 rechargement à chaud :
 
 ```bash
-cd auth-service && npm install && npm run dx     # port 3004
+cd auth-service && npm install && npm run dx              # port 3004
 ```
 
-Dans un second terminal :
+Dans des terminaux séparés :
 
 ```bash
-cd event-service && npm install && npm run dx    # port 3001
+cd event-service && npm install && npm run dx             # port 3001
+cd participants-service && npm install && npm run dx      # port 3002
+cd registrations-service && npm install && npm run dx     # port 3003
 ```
+
+`registrations-service` a besoin de `EVENTS_SERVICE_URL` et
+`PARTICIPANTS_SERVICE_URL` (voir `registrations-service/.env.example`) pour
+joindre les deux autres services lors d'une inscription.
 
 ### 4.3 Lancer l'interface
 
@@ -171,29 +183,25 @@ aucun écran produit. L'application est disponible sur `http://localhost:5173`.
 ```bash
 curl http://localhost:3004/health
 curl http://localhost:3001/health
+curl http://localhost:3002/health
+curl http://localhost:3003/health
 ```
 
 Chaque appel doit renvoyer `{"status":"ok", ...}`.
-
-### 4.5 participants-service et registrations-service
-
-Squelettes uniquement (`package.json` avec les dépendances attendues, dossiers
-vides). Voir `participants-service/README.md` et `registrations-service/README.md`
-pour la marche à suivre.
 
 ---
 
 ## 5. Instructions Docker
 
-`auth-service`, `event-service` et `gateway` ont chacun leur propre `Dockerfile`.
-`participants-service` et `registrations-service` n'en ont pas encore, faute de
-code.
+Les quatre services backend et `gateway` ont chacun leur propre `Dockerfile`.
 
 ### 5.1 Construire une image
 
 ```bash
-docker build -t eventhub-auth  ./auth-service
-docker build -t eventhub-event ./event-service
+docker build -t eventhub-auth          ./auth-service
+docker build -t eventhub-event         ./event-service
+docker build -t eventhub-participants  ./participants-service
+docker build -t eventhub-registrations ./registrations-service
 docker build -f gateway/Dockerfile -t eventhub-gateway .   # contexte = racine, construit aussi frontend/
 ```
 
@@ -248,13 +256,18 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
 docker compose ps
 ```
 
-Les six conteneurs doivent afficher `(healthy)` : `auth-db`, `auth-service`,
-`events-db`, `event-service`, `gateway`, `uptime-kuma`.
+Les neuf conteneurs doivent afficher `(healthy)` : `auth-db`, `auth-service`,
+`events-db`, `event-service`, `participants-db`, `participants-service`,
+`registrations-db`, `registrations-service`, `gateway` (`uptime-kuma` n'a pas
+de sonde de santé applicative, il démarre simplement `healthy`).
 
 | URL | Contenu |
 |---|---|
 | `http://localhost` | Interface web (socle) |
 | `http://localhost/api/events` | API événements (liste publique paginée) |
+| `http://localhost/api/events/:id/availability` | Disponibilité d'un événement en temps réel |
+| `http://localhost/api/participants` | API participants (authentifiée) |
+| `http://localhost/api/registrations` | API inscriptions (authentifiée) |
 | `http://localhost/api/auth/register` | Inscription |
 | `http://localhost:3010` | Uptime Kuma (supervision, moniteurs pas encore configurés) |
 
@@ -264,7 +277,8 @@ Les six conteneurs doivent afficher `(healthy)` : `auth-db`, `auth-service`,
 docker compose up -d
 ```
 
-Nécessite que les images `eventis-auth-service`, `eventis-event-service` et
+Nécessite que les images `eventis-auth-service`, `eventis-event-service`,
+`eventis-participants-service`, `eventis-registrations-service` et
 `eventis-gateway` existent sur GHCR (publiées automatiquement par `cd.yml` sur
 push vers `main`) et soient accessibles (publiques, ou un registry privé
 configuré côté déploiement).
@@ -282,14 +296,11 @@ docker compose down -v                    # arrêter et détruire les volumes
 
 | Élément | Détail |
 |---|---|
-| Services | 2 services Node (`auth-service`, `event-service`), 2 PostgreSQL, 1 passerelle Nginx (avec le build Vue intégré), 1 Uptime Kuma |
+| Services | 4 services Node (`auth-service`, `event-service`, `participants-service`, `registrations-service`), 4 PostgreSQL, 1 passerelle Nginx (avec le build Vue intégré), 1 Uptime Kuma |
 | Réseaux | `frontend` et `backend`. Seul `gateway` appartient aux deux. |
-| Volumes | `auth_data`, `events_data`, `uptime_kuma_data` |
+| Volumes | `auth_data`, `events_data`, `participants_data`, `registrations_data`, `uptime_kuma_data` |
 | Sondes | Sur chaque conteneur applicatif, avec `depends_on: condition: service_healthy` |
 | Redémarrage | `restart: unless-stopped` |
-
-`participants-service` et `registrations-service` n'y figurent pas encore : pas
-de code, donc pas d'image à construire ni de base à déclarer.
 
 ---
 
@@ -311,9 +322,9 @@ Semgrep) est mentionné dans les specs mais pas encore écrit.
 | 2 | Setup | `actions/setup-node@v4`, Node 24, cache npm |
 | 3 | Garde ES modules | `npm run lint:esm`, échoue si `require()` est présent dans `src/` |
 | 4 | Migrations | `npx prisma migrate deploy` contre un PostgreSQL éphémère (service GitHub Actions) |
-| 5 | Tests | Jest et Supertest sur `auth-service` et `event-service` |
-| 6 | Build frontend | `npm run generate:api` (genere `auth-service/openapi.json`, `event-service/openapi.json` puis le client Orval dans `frontend/src/api/generated/`, voir [ADR 0011](knowledge-base/adr/0011-openapi-genere-orval.md)) puis `npm run build` |
-| 7 | Docker Build et Push | 3 images (`auth-service`, `event-service`, `gateway`) via `docker/build-push-action@v5`, tags `latest` et SHA du commit |
+| 5 | Tests | Jest et Supertest sur les quatre services backend |
+| 6 | Build frontend | `npm run generate:api` (genere `openapi.json` pour les quatre services puis le client Orval dans `frontend/src/api/generated/`, voir [ADR 0011](knowledge-base/adr/0011-openapi-genere-orval.md)) puis `npm run build` |
+| 7 | Docker Build et Push | 5 images (`auth-service`, `event-service`, `participants-service`, `registrations-service`, `gateway`) via `docker/build-push-action@v5`, tags `latest` et SHA du commit |
 | 8 | Deploy | Mise à jour de `IMAGE_TAG` côté Dokploy (force le re-téléchargement de l'image), webhook Dokploy, vérification de `/api/events` |
 
 ### 7.2 Contrôles de qualité
@@ -337,7 +348,8 @@ ESLint, Prettier, Trivy, CodeQL et Semgrep ne sont pas encore intégrés au pipe
 
 `main` et `develop` sont protégées : aucun push direct, une approbation
 obligatoire, et les checks CI (`detect-changes`, `auth-service`, `event-service`,
-`frontend`, `gateway`) doivent être verts pour merger.
+`participants-service`, `registrations-service`, `frontend`, `gateway`) doivent
+être verts pour merger.
 
 ### 7.4 Déploiement
 
@@ -365,8 +377,10 @@ eventis/
 │   └── package.json
 ├── event-service/               service des événements, implémenté partiellement
 │   └── (même structure que auth-service)
-├── participants-service/       squelette seulement, aucun code
-├── registrations-service/      squelette seulement, aucun code
+├── participants-service/       service des participants, implémenté
+│   └── (même structure que auth-service)
+├── registrations-service/      service des inscriptions, implémenté
+│   └── (même structure que auth-service)
 ├── frontend/                   socle Vue 3 scaffoldé, aucun écran produit
 │   ├── src/
 │   ├── vite.config.js
@@ -428,7 +442,7 @@ eventis/
 
 | Technologie | Rôle | Statut |
 |---|---|---|
-| Jest | Tests unitaires backend | Implémenté (`auth-service`, `event-service`) |
+| Jest | Tests unitaires backend | Implémenté (quatre services backend) |
 | Supertest | Tests d'intégration HTTP | Implémenté |
 | Vitest | Tests unitaires frontend | Non commencé |
 | Playwright | Tests de bout en bout | Non commencé |
