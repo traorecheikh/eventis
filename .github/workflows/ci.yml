@@ -14,6 +14,8 @@ jobs:
     outputs:
       auth: ${{ steps.filter.outputs.auth }}
       events: ${{ steps.filter.outputs.events }}
+      participants: ${{ steps.filter.outputs.participants }}
+      registrations: ${{ steps.filter.outputs.registrations }}
       frontend: ${{ steps.filter.outputs.frontend }}
       gateway: ${{ steps.filter.outputs.gateway }}
     steps:
@@ -26,12 +28,84 @@ jobs:
               - 'auth-service/**'
             events:
               - 'event-service/**'
+            participants:
+              - 'participants-service/**'
+            registrations:
+              - 'registrations-service/**'
             frontend:
               - 'frontend/**'
             gateway:
               - 'gateway/**'
               - 'frontend/**'
               - 'docker-compose.yml'
+
+  participants-service:
+    name: participants-service
+    needs: changes
+    if: needs.changes.outputs.participants == 'true'
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: participants_user
+          POSTGRES_PASSWORD: ci_password
+          POSTGRES_DB: participants
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U participants_user" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://participants_user:ci_password@localhost:5432/participants
+      JWT_SECRET: ci-secret-not-used-in-production
+    defaults:
+      run:
+        working-directory: participants-service
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: participants-service/package-lock.json
+      - run: npm ci
+      - run: npm run lint:esm
+      - run: npx prisma migrate deploy
+      - run: npm test
+
+  registrations-service:
+    name: registrations-service
+    needs: changes
+    if: needs.changes.outputs.registrations == 'true'
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: registrations_user
+          POSTGRES_PASSWORD: ci_password
+          POSTGRES_DB: registrations
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U registrations_user" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://registrations_user:ci_password@localhost:5432/registrations
+      JWT_SECRET: ci-secret-not-used-in-production
+      EVENTS_SERVICE_URL: http://localhost:3001
+      PARTICIPANTS_SERVICE_URL: http://localhost:3002
+    defaults:
+      run:
+        working-directory: registrations-service
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: registrations-service/package-lock.json
+      - run: npm ci
+      - run: npm run lint:esm
+      - run: npx prisma migrate deploy
+      - run: npm test
 
   auth-service:
     name: auth-service

@@ -4,13 +4,7 @@
 #
 #   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
 #
-# Ne couvre que les services qui existent reellement dans le depot
-# (auth-service, event-service, frontend). participants-service et
-# registrations-service n'ont encore qu'un squelette (package.json), pas de
-# code. Voir AGENTS.md, section "Etat du depot" : completer ce fichier au fur
-# et a mesure que ces services sont implementes, en suivant le meme patron
-# (service + base + reseau backend, entree ajoutee a gateway/nginx.conf,
-# healthcheck, depends_on condition service_healthy, image ajoutee a cd.yml).
+# Couvre les quatre services, leurs bases et la passerelle.
 
 services:
 
@@ -84,6 +78,83 @@ services:
       timeout: 5s
       retries: 5
 
+  participants-db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${PARTICIPANTS_DB_USER}
+      POSTGRES_PASSWORD: ${PARTICIPANTS_DB_PASSWORD}
+      POSTGRES_DB: ${PARTICIPANTS_DB_NAME}
+    volumes:
+      - participants_data:/var/lib/postgresql/data
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${PARTICIPANTS_DB_USER}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  participants-service:
+    image: ghcr.io/traorecheikh/eventis-participants-service:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    environment:
+      PORT: 3002
+      JWT_SECRET: ${JWT_SECRET}
+      DATABASE_URL: postgresql://${PARTICIPANTS_DB_USER}:${PARTICIPANTS_DB_PASSWORD}@participants-db:5432/${PARTICIPANTS_DB_NAME}
+    depends_on:
+      participants-db:
+        condition: service_healthy
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3002/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  registrations-db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${REGISTRATIONS_DB_USER}
+      POSTGRES_PASSWORD: ${REGISTRATIONS_DB_PASSWORD}
+      POSTGRES_DB: ${REGISTRATIONS_DB_NAME}
+    volumes:
+      - registrations_data:/var/lib/postgresql/data
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${REGISTRATIONS_DB_USER}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  registrations-service:
+    image: ghcr.io/traorecheikh/eventis-registrations-service:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    environment:
+      PORT: 3003
+      JWT_SECRET: ${JWT_SECRET}
+      DATABASE_URL: postgresql://${REGISTRATIONS_DB_USER}:${REGISTRATIONS_DB_PASSWORD}@registrations-db:5432/${REGISTRATIONS_DB_NAME}
+      EVENTS_SERVICE_URL: http://event-service:3001
+      PARTICIPANTS_SERVICE_URL: http://participants-service:3002
+      HTTP_TIMEOUT_MS: ${HTTP_TIMEOUT_MS:-3000}
+    depends_on:
+      registrations-db:
+        condition: service_healthy
+      participants-service:
+        condition: service_healthy
+      event-service:
+        condition: service_healthy
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3003/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   gateway:
     image: ghcr.io/traorecheikh/eventis-gateway:${IMAGE_TAG:-latest}
     restart: unless-stopped
@@ -91,6 +162,10 @@ services:
       auth-service:
         condition: service_healthy
       event-service:
+        condition: service_healthy
+      participants-service:
+        condition: service_healthy
+      registrations-service:
         condition: service_healthy
     networks:
       - frontend
@@ -113,4 +188,6 @@ networks:
 volumes:
   auth_data:
   events_data:
+  participants_data:
+  registrations_data:
   uptime_kuma_data:
