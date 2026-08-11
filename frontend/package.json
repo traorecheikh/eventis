@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "generate:api:specs": "npm run docs:generate --prefix ../auth-service && npm run docs:generate --prefix ../event-service",
+    "generate:api:specs": "npm run docs:generate --prefix ../auth-service && npm run docs:generate --prefix ../event-service && npm run docs:generate --prefix ../participants-service && npm run docs:generate --prefix ../registrations-service",
     "generate:api": "npm run generate:api:specs && orval"
   },
   "dependencies": {

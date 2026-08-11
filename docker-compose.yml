@@ -67,6 +67,8 @@ services:
       PORT: 3001
       JWT_SECRET: ${JWT_SECRET}
       DATABASE_URL: postgresql://${EVENTS_DB_USER}:${EVENTS_DB_PASSWORD}@events-db:5432/${EVENTS_DB_NAME}
+      REGISTRATIONS_SERVICE_URL: http://registrations-service:3003
+      HTTP_TIMEOUT_MS: ${HTTP_TIMEOUT_MS:-3000}
     depends_on:
       events-db:
         condition: service_healthy

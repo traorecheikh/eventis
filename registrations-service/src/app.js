@@ -1,9 +1,13 @@
 import express from "express";
 import cors from "cors";
+import swaggerUi from "swagger-ui-express";
 import registrations from "./routes/registrations.js";
+import swaggerSpec from "./config/swagger.js";
 const app = express();
 app.use(cors()); app.use(express.json());
 app.get("/health", (req, res) => res.json({ status: "ok", service: "registrations-service", database: "connected" }));
+app.get("/api/registrations/docs.json", (req, res) => res.json(swaggerSpec));
+app.use("/api/registrations/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 app.use("/api/registrations", registrations);
 app.use((req, res) => res.status(404).json({ error: "Route introuvable" }));
 app.use((error, req, res, next) => { console.error("Erreur registrations-service:", error.message); res.status(500).json({ error: "Erreur interne du serveur" }); });

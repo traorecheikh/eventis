@@ -10,7 +10,8 @@
     "dx": "node scripts/dx.js",
     "lint:esm": "node scripts/check-no-require.js",
     "pretest": "npm run lint:esm",
-    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage"
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage",
+    "docs:generate": "node scripts/generate-openapi.js"
   },
   "keywords": ["eventhub", "registrations", "express"],
   "author": "BAH Thierno Madjou",
@@ -21,7 +22,9 @@
     "dotenv": "^17.2.1",
     "express": "^5.1.0",
     "jsonwebtoken": "^9.0.3",
-    "prisma": "^6.19.3"
+    "prisma": "^6.19.3",
+    "swagger-jsdoc": "^6.3.0",
+    "swagger-ui-express": "^5.0.1"
   },
   "devDependencies": {
     "jest": "^30.0.5",

@@ -30,5 +30,37 @@ export default {
                 }
             }
         }
+    },
+    participants: {
+        input: "../participants-service/openapi.json",
+        output: {
+            mode: "tags-split",
+            target: "./src/api/generated/participants",
+            client: "axios",
+            baseUrl: "/participants",
+            clean: true,
+            override: {
+                mutator: {
+                    path: "./src/api/axios-instance.js",
+                    name: "customInstance"
+                }
+            }
+        }
+    },
+    registrations: {
+        input: "../registrations-service/openapi.json",
+        output: {
+            mode: "tags-split",
+            target: "./src/api/generated/registrations",
+            client: "axios",
+            baseUrl: "/registrations",
+            clean: true,
+            override: {
+                mutator: {
+                    path: "./src/api/axios-instance.js",
+                    name: "customInstance"
+                }
+            }
+        }
     }
 };
