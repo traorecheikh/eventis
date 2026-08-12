@@ -2,6 +2,7 @@ import express from "express";
 const router = express.Router();
 import prisma from "../config/prisma.js";
 import auth from "../middleware/auth.js";
+import { getRegistrationStats } from "../services/upstream.js";
 
 const DEFAULT_PAGE_SIZE = 20;
 const MAX_PAGE_SIZE = 100;
@@ -274,5 +275,203 @@ router.post("/", auth, async (req, res) => {
 
 });
 
+
+function parseEventId(value) {
+    const parsed = Number(value);
+    return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+}
+
+/**
+ * @openapi
+ * /{id}:
+ *   get:
+ *     summary: Recuperer un evenement par son identifiant
+ *     description: Acces public, pas de jeton requis.
+ *     tags: [events]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Evenement trouve
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Event"
+ *       400:
+ *         description: id invalide
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Error"
+ *       404:
+ *         description: Evenement introuvable
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Error"
+ *       500:
+ *         description: Erreur interne
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Error"
+ */
+router.get("/:id", async (req, res) => {
+
+    const id = parseEventId(req.params.id);
+
+    if (!id) {
+        return res.status(400).json({
+            error: "id doit etre un entier strictement positif"
+        });
+    }
+
+    try {
+
+        const event = await prisma.event.findUnique({ where: { id } });
+
+        if (!event) {
+            return res.status(404).json({
+                error: "Evenement introuvable"
+            });
+        }
+
+        res.json(event);
+
+    } catch (error) {
+
+        console.error("Erreur lecture evenement:", error.message);
+
+        res.status(500).json({
+            error: "Erreur interne du serveur"
+        });
+
+    }
+
+});
+
+/**
+ * @openapi
+ * /{id}/availability:
+ *   get:
+ *     summary: Calculer la disponibilite d'un evenement
+ *     description: >
+ *       Point d'entree le plus important du systeme. Acces public, pas de jeton
+ *       requis. Appelle registrations-service pour compter les inscriptions
+ *       confirmees. Aucune valeur par defaut optimiste n'est renvoyee : en cas
+ *       d'indisponibilite de registrations-service, l'appel echoue avec 503
+ *       plutot que de risquer un surbooking.
+ *     tags: [events]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Disponibilite calculee
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               required: [eventId, maxCapacity, registeredCount, remainingSeats, isFull]
+ *               properties:
+ *                 eventId:
+ *                   type: integer
+ *                 maxCapacity:
+ *                   type: integer
+ *                 registeredCount:
+ *                   type: integer
+ *                 remainingSeats:
+ *                   type: integer
+ *                 isFull:
+ *                   type: boolean
+ *       400:
+ *         description: id invalide
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Error"
+ *       404:
+ *         description: Evenement introuvable
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Error"
+ *       503:
+ *         description: registrations-service injoignable, aucune reponse optimiste renvoyee
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Error"
+ */
+router.get("/:id/availability", async (req, res) => {
+
+    const id = parseEventId(req.params.id);
+
+    if (!id) {
+        return res.status(400).json({
+            error: "id doit etre un entier strictement positif"
+        });
+    }
+
+    try {
+
+        const event = await prisma.event.findUnique({ where: { id } });
+
+        if (!event) {
+            return res.status(404).json({
+                error: "Evenement introuvable"
+            });
+        }
+
+        let stats;
+
+        try {
+            stats = await getRegistrationStats(id);
+        } catch (error) {
+            if (error?.code === "SERVICE_UNAVAILABLE") {
+                return res.status(503).json({
+                    error: "SERVICE_UNAVAILABLE",
+                    message: "Impossible de verifier les inscriptions"
+                });
+            }
+            throw error;
+        }
+
+        if (stats.status < 200 || stats.status >= 300) {
+            return res.status(503).json({
+                error: "SERVICE_UNAVAILABLE",
+                message: "Impossible de verifier les inscriptions"
+            });
+        }
+
+        const registeredCount = stats.data?.confirmedCount ?? 0;
+        const remainingSeats = Math.max(event.maxCapacity - registeredCount, 0);
+
+        res.json({
+            eventId: id,
+            maxCapacity: event.maxCapacity,
+            registeredCount,
+            remainingSeats,
+            isFull: remainingSeats <= 0
+        });
+
+    } catch (error) {
+
+        console.error("Erreur calcul disponibilite:", error.message);
+
+        res.status(500).json({
+            error: "Erreur interne du serveur"
+        });
+
+    }
+
+});
 
 export default router;
