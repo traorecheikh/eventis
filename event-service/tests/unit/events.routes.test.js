@@ -3,11 +3,13 @@ import request from "supertest";
 import jwt from "jsonwebtoken";
 
 process.env.JWT_SECRET = "test-secret-not-used-in-prod";
+process.env.REGISTRATIONS_SERVICE_URL = "http://registrations-service:3003";
 
 const mockEvent = {
     findMany: jest.fn(),
     count: jest.fn(),
-    create: jest.fn()
+    create: jest.fn(),
+    findUnique: jest.fn()
 };
 
 jest.unstable_mockModule("../../src/config/prisma.js", () => ({
@@ -24,6 +26,7 @@ beforeEach(() => {
     mockEvent.findMany.mockReset();
     mockEvent.count.mockReset();
     mockEvent.create.mockReset();
+    mockEvent.findUnique.mockReset();
 });
 
 const VALID_EVENT = {
@@ -188,6 +191,116 @@ describe("POST /api/events", () => {
 
         expect(res.status).toBe(500);
         expect(res.body.error).not.toMatch(/10\.0\.0\.5/);
+    });
+
+});
+
+
+describe("GET /api/events/:id", () => {
+
+    test("accessible sans jeton (accès public exigé par le contrat)", async () => {
+        mockEvent.findUnique.mockResolvedValue({ id: 1, ...VALID_EVENT });
+
+        const res = await request(app).get("/api/events/1");
+
+        expect(res.status).toBe(200);
+        expect(res.body).toEqual({ id: 1, ...VALID_EVENT });
+    });
+
+    test("rejette un id non entier", async () => {
+        const res = await request(app).get("/api/events/abc");
+
+        expect(res.status).toBe(400);
+        expect(mockEvent.findUnique).not.toHaveBeenCalled();
+    });
+
+    test("renvoie 404 si l'evenement n'existe pas", async () => {
+        mockEvent.findUnique.mockResolvedValue(null);
+
+        const res = await request(app).get("/api/events/999");
+
+        expect(res.status).toBe(404);
+    });
+
+});
+
+
+describe("GET /api/events/:id/availability", () => {
+
+    beforeEach(() => {
+        jest.spyOn(global, "fetch").mockReset();
+    });
+
+    afterEach(() => {
+        jest.restoreAllMocks();
+    });
+
+    test("accessible sans jeton et calcule les places restantes", async () => {
+        mockEvent.findUnique.mockResolvedValue({ id: 1, ...VALID_EVENT, maxCapacity: 100 });
+        global.fetch = jest.fn().mockResolvedValue({
+            status: 200,
+            json: async () => ({ eventId: 1, confirmedCount: 30, cancelledCount: 2, totalCount: 32 })
+        });
+
+        const res = await request(app).get("/api/events/1/availability");
+
+        expect(res.status).toBe(200);
+        expect(res.body).toEqual({
+            eventId: 1,
+            maxCapacity: 100,
+            registeredCount: 30,
+            remainingSeats: 70,
+            isFull: false
+        });
+    });
+
+    test("renvoie isFull=true quand la capacite est atteinte", async () => {
+        mockEvent.findUnique.mockResolvedValue({ id: 1, ...VALID_EVENT, maxCapacity: 10 });
+        global.fetch = jest.fn().mockResolvedValue({
+            status: 200,
+            json: async () => ({ eventId: 1, confirmedCount: 10, cancelledCount: 0, totalCount: 10 })
+        });
+
+        const res = await request(app).get("/api/events/1/availability");
+
+        expect(res.status).toBe(200);
+        expect(res.body).toEqual(expect.objectContaining({ remainingSeats: 0, isFull: true }));
+    });
+
+    test("rejette un id non entier", async () => {
+        const res = await request(app).get("/api/events/abc/availability");
+
+        expect(res.status).toBe(400);
+    });
+
+    test("renvoie 404 si l'evenement n'existe pas, sans appeler registrations-service", async () => {
+        mockEvent.findUnique.mockResolvedValue(null);
+        global.fetch = jest.fn();
+
+        const res = await request(app).get("/api/events/999/availability");
+
+        expect(res.status).toBe(404);
+        expect(global.fetch).not.toHaveBeenCalled();
+    });
+
+    test("renvoie 503 sans valeur optimiste quand registrations-service est injoignable", async () => {
+        mockEvent.findUnique.mockResolvedValue({ id: 1, ...VALID_EVENT });
+        global.fetch = jest.fn().mockRejectedValue(new Error("network down"));
+
+        const res = await request(app).get("/api/events/1/availability");
+
+        expect(res.status).toBe(503);
+        expect(res.body.error).toBe("SERVICE_UNAVAILABLE");
+    });
+
+    test("renvoie 503 quand registrations-service repond avec un statut d'erreur", async () => {
+        mockEvent.findUnique.mockResolvedValue({ id: 1, ...VALID_EVENT });
+        global.fetch = jest.fn().mockResolvedValue({ status: 500, json: async () => ({}) });
+
+        const res = await request(app).get("/api/events/1/availability");
+
+        expect(res.status).toBe(503);
+        expect(res.body.error).toBe("SERVICE_UNAVAILABLE");
     });
 
 });

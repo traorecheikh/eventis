@@ -18,6 +18,14 @@ services:
     build: ./event-service
     image: eventis-event-service:dev
 
+  participants-service:
+    build: ./participants-service
+    image: eventis-participants-service:dev
+
+  registrations-service:
+    build: ./registrations-service
+    image: eventis-registrations-service:dev
+
   gateway:
     build:
       context: .
