@@ -19,11 +19,11 @@ app.get("/health", (req, res) => {
 
 });
 
-app.use("/api/events", eventsRoutes);
-
 app.get("/api/events/docs.json", (req, res) => {
     res.json(swaggerSpec);
 });
 app.use("/api/events/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
+app.use("/api/events", eventsRoutes);
 
 export default app;
