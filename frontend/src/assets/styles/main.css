@@ -1,0 +1,54 @@
+/* ============================================================
+   EventHub - Styles globaux
+   Imports : tokens de design + utilitaires UI partagés.
+   (L'ancien contenu a été migré vers tokens.css et utilities.css)
+   ============================================================ */
+
+@import './tokens.css';
+@import './utilities.css';
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  font-family: var(--font-family);
+  background: var(--color-background);
+  color: var(--color-text);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+a {
+  color: var(--color-primary);
+}
+
+img {
+  max-width: 100%;
+}
+
+h1,
+h2,
+h3 {
+  line-height: 1.25;
+  color: var(--color-ink);
+}
+
+/* Visually hidden (accessible aux lecteurs d'écran) */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
