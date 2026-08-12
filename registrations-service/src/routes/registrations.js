@@ -129,11 +129,23 @@ router.post("/", auth, async (req, res, next) => {
     if (availability.status === 404) return res.status(404).json({ error: "EVENT_NOT_FOUND" });
     if (availability.status < 200 || availability.status >= 300) return res.status(503).json({ error: "SERVICE_UNAVAILABLE" });
     if (availability.data?.isFull) return res.status(409).json({ error: "EVENT_FULL" });
-    const existing = await prisma.registration.findFirst({ where: { eventId, participantId, status: "confirmee" } });
-    if (existing) return res.status(409).json({ error: "ALREADY_REGISTERED" });
-    return res.status(201).json(await prisma.registration.create({ data: { eventId, participantId } }));
+    const maxCapacity = availability.data?.maxCapacity;
+    if (!Number.isInteger(maxCapacity) || maxCapacity <= 0) return res.status(503).json({ error: "SERVICE_UNAVAILABLE" });
+    // maxCapacity est lu hors verrou : sans risque tant qu'events-service n'expose pas de PUT /events/:id
+    // (la capacite d'un evenement est immuable une fois cree). Le verrou porte sur ce qui peut vraiment
+    // changer entre la lecture et l'ecriture : le nombre d'inscriptions confirmees pour cet evenement.
+    const registration = await prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(${eventId})`;
+      const existing = await tx.registration.findFirst({ where: { eventId, participantId, status: "confirmee" } });
+      if (existing) { const error = new Error("ALREADY_REGISTERED"); error.code = "ALREADY_REGISTERED"; throw error; }
+      const confirmedCount = await tx.registration.count({ where: { eventId, status: "confirmee" } });
+      if (confirmedCount >= maxCapacity) { const error = new Error("EVENT_FULL"); error.code = "EVENT_FULL"; throw error; }
+      return tx.registration.create({ data: { eventId, participantId } });
+    });
+    return res.status(201).json(registration);
   } catch (error) {
-    if (error?.code === "P2002" || error?.code === "23505") return res.status(409).json({ error: "ALREADY_REGISTERED" });
+    if (error?.code === "ALREADY_REGISTERED" || error?.code === "P2002" || error?.code === "23505") return res.status(409).json({ error: "ALREADY_REGISTERED" });
+    if (error?.code === "EVENT_FULL") return res.status(409).json({ error: "EVENT_FULL" });
     return upstreamError(error, res, next);
   }
 });
@@ -189,10 +201,18 @@ router.delete("/:id", auth, async (req, res, next) => {
   const registrationId = id(req.params.id);
   if (!registrationId) return res.status(400).json({ error: "id invalide" });
   try {
-    const current = await prisma.registration.findUnique({ where: { id: registrationId } });
-    if (!current) return res.status(404).json({ error: "Inscription introuvable" });
-    if (current.status === "annulee") return res.status(409).json({ error: "ALREADY_CANCELLED" });
-    return res.json(await prisma.registration.update({ where: { id: registrationId }, data: { status: "annulee", cancelledAt: new Date() } }));
+    // updateMany filtre sur status: "confirmee" : deux DELETE concurrents sur la meme inscription
+    // ne peuvent pas tous les deux reussir, l'un des deux voit count === 0.
+    const result = await prisma.registration.updateMany({
+      where: { id: registrationId, status: "confirmee" },
+      data: { status: "annulee", cancelledAt: new Date() }
+    });
+    if (result.count === 0) {
+      const current = await prisma.registration.findUnique({ where: { id: registrationId } });
+      if (!current) return res.status(404).json({ error: "Inscription introuvable" });
+      return res.status(409).json({ error: "ALREADY_CANCELLED" });
+    }
+    return res.json(await prisma.registration.findUnique({ where: { id: registrationId } }));
   } catch (error) { next(error); }
 });
 
