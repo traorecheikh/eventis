@@ -4,71 +4,60 @@ import { saveToken, removeToken, getToken, decodeToken } from './token.js'
 /**
  * Service d'accès à l'API auth-service.
  *
- * Endpoints (supposés — à confirmer par la documentation
- * Swagger/OpenAPI officielle de l'auth-service) :
- *   POST /api/auth/login    { email, password }  → { token, user }
- *   POST /api/auth/register { name, email, password } → { token, user }
- *   POST /api/auth/logout   (informatif côté client)
- *   GET  /api/auth/me       (Bearer)             → { user }
+ * Contrat reel (knowledge-base/api/auth-service.md) :
+ *   POST /api/auth/register { email, password, role } -> { user, token, expiresIn }
+ *   POST /api/auth/login    { email, password }        -> { user, token }
+ *   GET  /api/auth/me       (Bearer)                    -> { user }
  *
- * Le jeton JWT est sauvegardé dans localStorage (token.js) et
- * injecté automatiquement dans l'en-tête Authorization par
- * l'instance Axios partagée (api.js).
+ * role vaut "organisateur" ou "participant". Il n'y a pas de champ
+ * name cote auth-service : l'identite affichable est l'email.
  */
 
 /**
  * Connecte un utilisateur et stocke le jeton JWT.
  *
- * @param {Object} credentials { email, password }
- * @returns {Promise<{ token: string, user: object }>}
+ * @param {{email: string, password: string}} credentials
+ * @returns {Promise<{token: string, user: object}>}
  */
-export async function login(credentials) {
-  const { email, password } = credentials
+export async function login({ email, password }) {
   const { data } = await apiClient.post('/auth/login', { email, password })
-
   if (data?.token) saveToken(data.token)
   return data
 }
 
 /**
- * Crée un compte et connecte directement l'utilisateur.
+ * Cree un compte et connecte directement l'utilisateur.
  *
- * @param {Object} payload { name, email, password }
- * @returns {Promise<{ token: string, user: object }>}
+ * @param {{email: string, password: string, role: "organisateur"|"participant"}} payload
+ * @returns {Promise<{token: string, user: object}>}
  */
-export async function register(payload) {
-  const { data } = await apiClient.post('/auth/register', payload)
-
+export async function register({ email, password, role }) {
+  const { data } = await apiClient.post('/auth/register', { email, password, role })
   if (data?.token) saveToken(data.token)
   return data
 }
 
 /**
- * Déconnecte l'utilisateur (suppression du jeton côté client).
- * Si le backend expose un endpoint de déconnexion, il pourra
- * être appelé ici avant de retirer le jeton.
+ * Deconnecte l'utilisateur (suppression du jeton cote client,
+ * auth-service n'expose pas de route de deconnexion).
  */
-export async function logout() {
+export function logout() {
   removeToken()
 }
 
 /**
- * Récupère l'utilisateur authentifié courant.
+ * Recupere l'utilisateur authentifie courant aupres du backend.
  *
  * @returns {Promise<object|null>}
  */
 export async function fetchCurrentUser() {
-  try {
-    const { data } = await apiClient.get('/auth/me')
-    return data?.user ?? data ?? null
-  } catch {
-    return null
-  }
+  const { data } = await apiClient.get('/auth/me')
+  return data?.user ?? null
 }
 
 /**
- * Retourne l'utilisateur courant depuis le jeton décodé,
- * sans appel réseau.
+ * Retourne l'utilisateur courant depuis le jeton decode,
+ * sans appel reseau (id, email, role, iat, exp).
  *
  * @returns {object|null}
  */
@@ -76,5 +65,6 @@ export function getCurrentUser() {
   const token = getToken()
   if (!token) return null
   const payload = decodeToken(token)
-  return payload?.user ?? payload ?? null
+  if (!payload) return null
+  return { id: payload.id, email: payload.email, role: payload.role }
 }

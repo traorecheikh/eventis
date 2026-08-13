@@ -1,92 +1,138 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import {
+  createParticipant as apiCreateParticipant,
   getParticipants as apiGetParticipants,
-  getParticipantById as apiGetParticipantById
+  searchParticipants as apiSearchParticipants,
+  getParticipantById as apiGetParticipantById,
+  updateParticipant as apiUpdateParticipant,
+  deleteParticipant as apiDeleteParticipant
 } from '../services/participantService.js'
 
 /**
  * Store des participants (participantStore).
  *
- * Connecté au participants-service via participantService.js.
- * Si le backend n'est pas disponible, les données mockées
- * locales sont utilisées en repli (fallback).
+ * Connecte au participants-service via participantService.js.
+ * Aucune donnee de repli : une erreur du backend reste une erreur.
  *
- * Architecture : View → Component → Pinia Store → Service API → Axios
+ * Architecture : View -> Component -> Pinia Store -> Service API -> Axios
  */
 export const useParticipantStore = defineStore('participants', () => {
-  // -------------------- État --------------------
-  const participants = ref([])    // Liste des participants (data)
-  const currentParticipant = ref(null) // Participant actuellement consulté
+  const participants = ref([])
+  const pagination = ref({ page: 1, limit: 20, total: 0, totalPages: 1 })
+  const currentParticipant = ref(null)
   const loading = ref(false)
   const error = ref('')
   const success = ref('')
 
-  // -------------------- Getters --------------------
   const participantCount = computed(() => participants.value.length)
 
-  // -------------------- Actions --------------------
   /**
-   * Charge la liste des participants via l'API
-   * (GET /api/participants), avec repli sur les données mockées.
-   *
-   * L'API ne propose pas de paramètre de recherche côté serveur :
-   * le filtrage est effectué localement (option `search`).
+   * Charge une page de participants (authentifie), filtre optionnel
+   * par type.
    */
-  async function fetchParticipants({ search = '' } = {}) {
+  async function fetchParticipants({ page = 1, limit = 20, type = '' } = {}) {
     resetStatus()
     loading.value = true
-
     try {
-      let data = await apiGetParticipants()
-      if (search.trim()) {
-        const query = search.toLowerCase()
-        data = data.filter(
-          (participant) =>
-            `${participant.firstName} ${participant.lastName}`
-              .toLowerCase()
-              .includes(query) ||
-            (participant.email || '')
-              .toLowerCase()
-              .includes(query) ||
-            (participant.role || '')
-              .toLowerCase()
-              .includes(query)
-        )
-      }
-      participants.value = data
-      success.value = `${participants.value.length} participant(s) chargé(s).`
-    } catch {
-      // Backend indisponible : repli sur les données mockées.
-      participants.value = await loadParticipantsMock()
-      success.value = `${participants.value.length} participant(s) chargé(s) (données locales).`
+      const response = await apiGetParticipants({ page, limit, type: type || undefined })
+      participants.value = response.data || []
+      pagination.value = response.pagination || pagination.value
+    } catch (err) {
+      error.value = err.message || 'Impossible de charger les participants.'
+      participants.value = []
     } finally {
       loading.value = false
     }
   }
 
   /**
-   * Recherche un participant par son identifiant
-   * (GET /api/participants/:id), avec repli sur les données mockées.
+   * Recherche un participant par email ou par nom.
+   */
+  async function searchParticipants({ email = '', name = '' } = {}) {
+    resetStatus()
+    loading.value = true
+    try {
+      participants.value = await apiSearchParticipants({
+        email: email || undefined,
+        name: name || undefined
+      })
+    } catch (err) {
+      error.value = err.message || 'La recherche a echoue.'
+      participants.value = []
+    } finally {
+      loading.value = false
+    }
+  }
+
+  /**
+   * Recupere un participant par son identifiant.
    */
   async function fetchParticipantById(id) {
     resetStatus()
     loading.value = true
-
     try {
       currentParticipant.value = await apiGetParticipantById(id)
-    } catch {
-      // Repli local.
-      const data = await loadParticipantsMock()
-      const found = data.find((participant) => participant.id === Number(id))
+    } catch (err) {
+      error.value = err.message || `Aucun participant ne correspond a l'identifiant ${id}.`
+      currentParticipant.value = null
+    } finally {
+      loading.value = false
+    }
+  }
 
-      if (!found) {
-        error.value = `Aucun participant ne correspond à l'identifiant ${id}.`
-        currentParticipant.value = null
-        return
+  /**
+   * Cree un profil participant (POST /api/participants, public).
+   */
+  async function createParticipant(payload) {
+    resetStatus()
+    loading.value = true
+    try {
+      const created = await apiCreateParticipant(payload)
+      success.value = 'Profil participant cree avec succes.'
+      return created
+    } catch (err) {
+      error.value = err.message || 'La creation du profil a echoue.'
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  /**
+   * Met a jour le profil participant courant.
+   */
+  async function updateParticipant(id, payload) {
+    resetStatus()
+    loading.value = true
+    try {
+      const updated = await apiUpdateParticipant(id, payload)
+      if (currentParticipant.value?.id === Number(id)) {
+        currentParticipant.value = updated
       }
+      success.value = 'Profil mis a jour avec succes.'
+      return updated
+    } catch (err) {
+      error.value = err.message || 'La mise a jour du profil a echoue.'
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
 
-      currentParticipant.value = found
+  /**
+   * Supprime un profil participant.
+   */
+  async function removeParticipant(id) {
+    resetStatus()
+    loading.value = true
+    try {
+      await apiDeleteParticipant(id)
+      participants.value = participants.value.filter((p) => p.id !== Number(id))
+      success.value = 'Participant supprime avec succes.'
+    } catch (err) {
+      error.value = err.message || 'La suppression a echoue.'
+      throw err
     } finally {
       loading.value = false
     }
@@ -99,33 +145,18 @@ export const useParticipantStore = defineStore('participants', () => {
 
   return {
     participants,
+    pagination,
     currentParticipant,
     loading,
     error,
     success,
     participantCount,
     fetchParticipants,
+    searchParticipants,
     fetchParticipantById,
+    createParticipant,
+    updateParticipant,
+    removeParticipant,
     resetStatus
   }
 })
-
-/**
- * Note d'architecture (participants-service).
- *
- * L'API participants expose uniquement la consultation
- * (GET /api/participants, GET /api/participants/:id).
- * La création et la modification de participants ne sont PAS
- * disponibles côté backend : aucune fonctionnalité d'édition
- * ne doit être implémentée sans un endpoint confirmé par la
- * documentation Swagger/OpenAPI officielle.
- */
-
-/**
- * Source de données temporaire (mock) utilisée en repli lorsque
- * le backend participants-service n'est pas disponible.
- */
-async function loadParticipantsMock() {
-  const { MOCK_PARTICIPANTS } = await import('../assets/images/mockData.js')
-  return MOCK_PARTICIPANTS
-}

@@ -1,48 +1,92 @@
 import apiClient from './api.js'
-import { mapRegistrationPayload } from './registrationMapper.js'
 
 /**
- * Service d'accès à l'API registrations-service.
+ * Service d'acces a l'API registrations-service.
  *
- * Endpoints (supposés — à confirmer par la documentation
- * Swagger/OpenAPI officielle du registrations-service) :
- *   GET  /api/registrations        (Bearer) → liste des inscriptions
- *   POST /api/registrations        (Bearer) body { eventId, participant } → 201
- *   DELETE /api/registrations/:id  (Bearer) → 204 (annulation)
+ * Contrat reel (knowledge-base/api/registrations-service.md) :
+ *   POST   /api/registrations                       (Bearer) { eventId, participantId } -> 201
+ *   DELETE /api/registrations/:id                    (Bearer) -> annulation logique, 200
+ *   GET    /api/registrations/event/:eventId          (Bearer) ?status&page&limit&enrich
+ *   GET    /api/registrations/participant/:participantId (Bearer) ?status&page&limit&enrich
+ *   GET    /api/registrations/stats/event/:eventId    (public) -> { confirmedCount, cancelledCount, totalCount }
+ *   GET    /api/registrations/stats                   (Bearer) -> statistiques globales
  *
- * Le jeton JWT est injecté automatiquement par l'instance Axios
- * partagée (api.js). Le payload du formulaire est converti par
- * registrationMapper.js avant envoi.
+ * Le backend lie une inscription a un participant existant
+ * (participantId), il n'accepte pas de details de participant en
+ * ligne : le profil doit deja exister (participants-service).
  */
 
 /**
- * Récupère les inscriptions de l'utilisateur connecté.
+ * Inscrit un participant a un evenement.
  *
- * @returns {Promise<object[]>}
+ * @param {{eventId: number, participantId: number}} payload
+ * @returns {Promise<object>}
  */
-export async function getRegistrations() {
-  const { data } = await apiClient.get('/registrations')
-  return Array.isArray(data) ? data : data?.registrations ?? []
+export async function createRegistration({ eventId, participantId }) {
+  const { data } = await apiClient.post('/registrations', {
+    eventId: Number(eventId),
+    participantId: Number(participantId)
+  })
+  return data
 }
 
 /**
- * Crée une inscription à un événement.
+ * Annule une inscription (annulation logique cote backend).
  *
- * @param {Object} registrationData données du formulaire
- * @returns {Promise<object>} inscription créée
- */
-export async function createRegistration(registrationData) {
-  const payload = mapRegistrationPayload(registrationData)
-  const { data } = await apiClient.post('/registrations', payload)
-  return data?.registration ?? data
-}
-
-/**
- * Annule une inscription (suppression côté backend).
- *
- * @param {string|number} id identifiant de l'inscription
- * @returns {Promise<void>}
+ * @param {string|number} id
+ * @returns {Promise<object>}
  */
 export async function cancelRegistration(id) {
-  await apiClient.delete(`/registrations/${id}`)
+  const { data } = await apiClient.delete(`/registrations/${id}`)
+  return data
+}
+
+/**
+ * Liste les inscriptions d'un evenement.
+ *
+ * @param {string|number} eventId
+ * @param {{status?: string, page?: number, limit?: number, enrich?: boolean}} params
+ * @returns {Promise<{data: object[], pagination: object}>}
+ */
+export async function getEventRegistrations(eventId, { status, page = 1, limit = 20, enrich = false } = {}) {
+  const { data } = await apiClient.get(`/registrations/event/${eventId}`, {
+    params: { status, page, limit, enrich: enrich || undefined }
+  })
+  return data
+}
+
+/**
+ * Liste les inscriptions d'un participant (« mes inscriptions »).
+ *
+ * @param {string|number} participantId
+ * @param {{status?: string, page?: number, limit?: number, enrich?: boolean}} params
+ * @returns {Promise<{data: object[], pagination: object}>}
+ */
+export async function getParticipantRegistrations(participantId, { status, page = 1, limit = 20, enrich = true } = {}) {
+  const { data } = await apiClient.get(`/registrations/participant/${participantId}`, {
+    params: { status, page, limit, enrich: enrich || undefined }
+  })
+  return data
+}
+
+/**
+ * Statistiques d'inscription d'un evenement (public, compteurs a
+ * zero si l'evenement n'a aucune inscription).
+ *
+ * @param {string|number} eventId
+ * @returns {Promise<{eventId: number, confirmedCount: number, cancelledCount: number, totalCount: number}>}
+ */
+export async function getEventStats(eventId) {
+  const { data } = await apiClient.get(`/registrations/stats/event/${eventId}`)
+  return data
+}
+
+/**
+ * Statistiques globales pour le tableau de bord (authentifie).
+ *
+ * @returns {Promise<{totalRegistrations: number, totalConfirmed: number, totalCancelled: number, byEvent: object[]}>}
+ */
+export async function getGlobalStats() {
+  const { data } = await apiClient.get('/registrations/stats')
+  return data
 }

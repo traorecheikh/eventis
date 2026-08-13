@@ -1,145 +1,67 @@
 import apiClient from './api'
 
 /**
- * Service d'accès à l'API backend Events.
+ * Service d'acces a l'API event-service.
  *
- * Endpoints utilisés (aucun autre endpoint n'est appelé) :
- * - GET    /api/events
- * - GET    /api/events/:id
- * - POST   /api/events
- * - PUT    /api/events/:id
- * - DELETE /api/events/:id
+ * Contrat reel (knowledge-base/api/events-service.md) :
+ *   GET  /api/events                     (public, pagine)      -> { data, pagination }
+ *   GET  /api/events/:id                 (public)              -> Event
+ *   GET  /api/events/:id/availability    (public)              -> { eventId, maxCapacity, registeredCount, remainingSeats, isFull }
+ *   POST /api/events                     (Bearer)              -> Event, 201
  *
- * Le format du corps de requête pour créer/modifier un événement
- * respecte strictement le schéma attendu par le backend :
- *
- *   {
- *     "name": "Conférence IA",
- *     "eventDate": "2026-09-15",
- *     "venue": "Dakar",
- *     "maxCapacity": 100
- *   }
- *
- * Champs exacts : name, eventDate, venue, maxCapacity.
- * Aucun autre champ (title, description, date, location,
- * capacity) n'est envoyé.
+ * Champs exacts d'un evenement : title, description?, date (ISO 8601,
+ * futur), location, maxCapacity. PUT/DELETE /events/:id n'existent pas
+ * encore cote backend (voir tableau de bord, US-07/US-08) : aucune
+ * fonction de modification/suppression n'est exposee ici.
  */
 
 /**
- * Liste tous les événements.
+ * Liste les evenements, pagines.
  *
- * @returns {Promise<Array>} Liste des événements retournée par
- *   l'API (structure de réponse selon Swagger/OpenAPI).
+ * @param {{page?: number, limit?: number}} params
+ * @returns {Promise<{data: object[], pagination: object}>}
  */
-export async function getEvents() {
-  const response = await apiClient.get('/events')
-  // La réponse respecte la structure définie par Swagger/OpenAPI.
-  // On accepte les formats courants : tableau direct,
-  // response.data.events ou response.data.data.
-  return response.data
+export async function getEvents({ page = 1, limit = 20 } = {}) {
+  const { data } = await apiClient.get('/events', { params: { page, limit } })
+  return data
 }
 
 /**
- * Récupère un événement par son identifiant.
+ * Recupere un evenement par son identifiant.
  *
- * @param {string|number} id Identifiant de l'événement
- * @returns {Promise<Object>} Événement retourné par l'API
- *   (structure de réponse selon Swagger/OpenAPI).
+ * @param {string|number} id
+ * @returns {Promise<object>}
  */
 export async function getEventById(id) {
-  const response = await apiClient.get(`/events/${id}`)
-  // On accepte les formats courants : objet direct,
-  // response.data.event ou response.data.data.
-  return response.data
+  const { data } = await apiClient.get(`/events/${id}`)
+  return data
 }
 
 /**
- * Crée un nouvel événement.
+ * Calcule la disponibilite en temps reel d'un evenement
+ * (appelle registrations-service cote backend).
  *
- * Le corps de la requête utilise exactement les champs attendus
- * par le backend : name, eventDate, venue, maxCapacity.
- *
- * @param {Object} data { name, eventDate, venue, maxCapacity }
- * @returns {Promise<Object>} Événement créé
+ * @param {string|number} id
+ * @returns {Promise<{eventId: number, maxCapacity: number, registeredCount: number, remainingSeats: number, isFull: boolean}>}
  */
-export async function createEvent(data) {
-  const payload = mapEventPayload(data)
-  const response = await apiClient.post('/events', payload)
-  return response.data
+export async function getEventAvailability(id) {
+  const { data } = await apiClient.get(`/events/${id}/availability`)
+  return data
 }
 
 /**
- * Modifie un événement existant.
+ * Cree un evenement (reserve aux utilisateurs authentifies).
  *
- * Le corps de la requête utilise exactement le schéma défini
- * par Swagger/OpenAPI : name, eventDate, venue, maxCapacity.
- *
- * @param {string|number} id Identifiant de l'événement
- * @param {Object} data { name, eventDate, venue, maxCapacity }
- * @returns {Promise<Object>} Événement mis à jour
+ * @param {{title: string, description?: string, date: string, location: string, maxCapacity: number}} payload
+ * @returns {Promise<object>}
  */
-export async function updateEvent(id, data) {
-  const payload = mapEventPayload(data)
-  const response = await apiClient.put(`/events/${id}`, payload)
-  return response.data
-}
-
-/**
- * Supprime un événement.
- *
- * @param {string|number} id Identifiant de l'événement
- * @returns {Promise<Object>} Réponse de suppression
- */
-export async function deleteEvent(id) {
-  const response = await apiClient.delete(`/events/${id}`)
-  return response.data
-}
-
-/**
- * Normalise les données du formulaire vers le format exact
- * attendu par le backend.
- *
- * Les composants manipulent les champs internes (title, date,
- * location, capacity) ; cette fonction les convertit
- * strictement en : name, eventDate, venue, maxCapacity.
- *
- * @param {Object} data Données du formulaire ou de l'API
- * @returns {Object} Payload conforme au backend
- */
-export function mapEventPayload(data) {
-  return {
-    name: (data?.name ?? data?.title ?? '').toString().trim(),
-    eventDate: (data?.eventDate ?? data?.date ?? '').toString().trim(),
-    venue: (data?.venue ?? data?.location ?? '').toString().trim(),
-    maxCapacity: Number.isFinite(Number(data?.maxCapacity ?? data?.capacity))
-      ? Number(data?.maxCapacity ?? data?.capacity)
-      : undefined
-  }
-}
-
-/**
- * Normalise la réponse du backend vers le format interne
- * utilisé par le frontend (pour la compatibilité avec les
- * composants existants).
- *
- * @param {Object} event Événement brut retourné par l'API
- * @returns {Object} Événement au format interne
- */
-export function mapApiResponse(event) {
-  return {
-    id: event?.id,
-    title: event?.name ?? event?.title ?? '',
-    date: event?.eventDate ?? event?.date ?? '',
-    location: event?.venue ?? event?.location ?? '',
-    category: event?.category ?? 'Général',
-    description: event?.description ?? '',
-    maxParticipants: event?.maxCapacity ?? event?.capacity ?? 0,
-    currentParticipants: event?.currentParticipants ?? 0,
-    organizer: event?.organizer ?? '',
-    status: event?.status ?? 'published',
-    time: event?.time ?? '',
-    remainingSeats:
-      (event?.maxCapacity ?? event?.capacity ?? 0) -
-      (event?.currentParticipants ?? 0)
-  }
+export async function createEvent(payload) {
+  const { data } = await apiClient.post('/events', {
+    title: payload.title?.trim(),
+    description: payload.description?.trim() || undefined,
+    date: payload.date,
+    location: payload.location?.trim(),
+    maxCapacity: Number(payload.maxCapacity)
+  })
+  return data
 }
