@@ -1,28 +1,30 @@
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
+import { MotionPlugin } from '@vueuse/motion'
 
 import App from './App.vue'
 import router from './router'
 import { useAuthStore } from './stores/authStore'
 
-import './assets/styles/main.css'
+import './style.css'
 
 const app = createApp(App)
 
 const pinia = createPinia()
 app.use(pinia)
 app.use(router)
-
-app.mount('#app')
+app.use(MotionPlugin)
 
 /**
- * Restaure la session au démarrage : si un jeton JWT est présent
- * dans localStorage, l'état utilisateur est rechargé (jeton décodé
- * puis backend si disponible). La garde de routes (router/index.js)
- * s'appuie sur ce jeton pour protéger les routes nécessitant une
- * authentification.
+ * Restaure la session avant le montage : si un jeton JWT est present
+ * dans localStorage, l'etat utilisateur (et le profil participant
+ * lie, voir authStore.resolveParticipantProfile) est recharge avant
+ * qu'aucune vue ne s'affiche. Sans cette attente, une navigation
+ * directe (rechargement de page) vers une route authentifiee peut
+ * monter avant la fin de l'hydratation et lire un participantId nul
+ * a tort.
  */
-router.isReady().then(() => {
-  const authStore = useAuthStore(pinia)
-  authStore.hydrateFromToken()
-})
+const authStore = useAuthStore(pinia)
+await authStore.hydrateFromToken()
+
+router.isReady().then(() => app.mount('#app'))

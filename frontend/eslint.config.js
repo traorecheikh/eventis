@@ -22,7 +22,11 @@ export default [
     },
     rules: {
       'no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
-      'vue/multi-word-component-names': 'off'
+      'vue/multi-word-component-names': 'off',
+      // Incompatibles avec Tailwind (listes de classes utilitaires longues,
+      // une par attribut, sur une seule ligne est l'usage idiomatique).
+      'vue/max-attributes-per-line': 'off',
+      'vue/singleline-html-element-content-newline': 'off'
     }
   },
   {
