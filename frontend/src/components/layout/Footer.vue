@@ -1,134 +1,50 @@
 <script setup>
+import { computed } from 'vue'
 import { RouterLink } from 'vue-router'
+import { CalendarCheck } from 'lucide-vue-next'
+import { useAuthStore } from '../../stores'
 
 /**
  * Pied de page de l'application.
- *
- * Responsive : colonnes empilées sur mobile, grille sur desktop.
  */
+const authStore = useAuthStore()
 const year = new Date().getFullYear()
 
-const footerLinks = [
-  { to: '/events', label: 'Événements' },
-  { to: '/registrations', label: 'Mes inscriptions' },
-  { to: '/dashboard', label: 'Tableau de bord' },
-  { to: '/login', label: 'Connexion' }
-]
+const footerLinks = computed(() => [
+  { to: '/events', label: 'Evenements', auth: false },
+  { to: '/registrations', label: 'Mes inscriptions', auth: true },
+  { to: '/dashboard', label: 'Tableau de bord', auth: true },
+  { to: '/login', label: 'Connexion', auth: false, hideWhenAuth: true }
+].filter((link) => (!link.auth || authStore.isAuthenticated) && !(link.hideWhenAuth && authStore.isAuthenticated)))
 </script>
 
 <template>
-  <footer
-    class="footer"
-    role="contentinfo"
-  >
-    <div class="footer-inner container">
-      <div class="footer-brand">
-        <span
-          class="brand-mark"
-          aria-hidden="true"
-        >E</span>
+  <footer class="mt-auto bg-brand-950 text-slate-300" role="contentinfo">
+    <div class="mx-auto grid max-w-6xl grid-cols-1 items-center gap-6 px-4 py-8 md:grid-cols-[1.5fr_1fr]">
+      <div class="flex items-center gap-3 text-white">
+        <CalendarCheck class="h-9 w-9 text-brand-300" aria-hidden="true" />
         <div>
-          <strong>EventHub</strong>
-          <p class="brand-tagline">
-            Gestion d'événements simplifiée
+          <strong class="block">EventHub</strong>
+          <p class="mt-0.5 text-sm text-slate-400">
+            Conferences, ateliers et seminaires du Dakar Institute of Technology.
           </p>
         </div>
       </div>
 
-      <nav
-        class="footer-nav"
-        aria-label="Liens du pied de page"
-      >
+      <nav class="flex flex-wrap gap-x-5 gap-y-2 md:justify-end" aria-label="Liens du pied de page">
         <RouterLink
           v-for="link in footerLinks"
           :key="link.to"
           :to="link.to"
-          class="footer-link"
+          class="text-sm text-slate-300 transition-colors hover:text-white"
         >
           {{ link.label }}
         </RouterLink>
       </nav>
 
-      <p class="footer-legal">
-        © {{ year }} EventHub — Interface de démonstration (données locales)
+      <p class="col-span-full text-sm text-slate-500">
+        {{ year }} EventHub, Equipe 7, Master 1 Intelligence Artificielle, Dakar Institute of Technology.
       </p>
     </div>
   </footer>
 </template>
-
-<style scoped>
-.footer {
-  background: var(--color-background-deep);
-  color: #cbd5e1;
-  margin-top: auto;
-}
-
-.footer-inner {
-  display: grid;
-  grid-template-columns: 1.5fr 1fr;
-  gap: var(--space-6);
-  align-items: center;
-  padding: var(--space-6) 0;
-}
-
-.footer-brand {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  color: #fff;
-}
-
-.brand-mark {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  border-radius: var(--radius-sm);
-  background: var(--color-primary);
-  font-weight: 800;
-  flex-shrink: 0;
-}
-
-.brand-tagline {
-  font-size: var(--font-size-sm);
-  color: #94a3b8;
-  margin-top: 0.125rem;
-}
-
-.footer-nav {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-4);
-  justify-content: flex-end;
-}
-
-.footer-link {
-  color: #cbd5e1;
-  text-decoration: none;
-  font-size: var(--font-size-sm);
-  transition: color var(--transition-fast);
-}
-
-.footer-link:hover {
-  color: #fff;
-}
-
-.footer-legal {
-  grid-column: 1 / -1;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-  padding-top: var(--space-4);
-  font-size: var(--font-size-xs);
-  color: #64748b;
-}
-
-@media (max-width: 720px) {
-  .footer-inner {
-    grid-template-columns: 1fr;
-  }
-
-  .footer-nav {
-    justify-content: flex-start;
-  }
-}
-</style>

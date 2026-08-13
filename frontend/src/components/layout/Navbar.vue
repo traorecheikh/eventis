@@ -1,261 +1,120 @@
 <script setup>
 import { ref, computed } from 'vue'
-import { RouterLink, useRouter } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
+import { CalendarCheck, Menu, X } from 'lucide-vue-next'
 import { useAuthStore } from '../../stores/authStore.js'
 
 /**
- * Barre de navigation principale (en-tête).
+ * Barre de navigation principale.
  *
- * Responsive : menu hamburger sur mobile, liens horizontaux
- * sur tablette et desktop. Connectée au authStore : les liens
- * protégés et le bouton de déconnexion n'apparaissent que pour
- * l'utilisateur connecté.
+ * Responsive : menu hamburger sur mobile. Connectee au authStore :
+ * les liens proteges et le bouton de deconnexion n'apparaissent que
+ * pour l'utilisateur connecte.
  */
+const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
 const mobileMenuOpen = ref(false)
 
 const navLinks = [
   { to: '/', label: 'Accueil', auth: false },
-  { to: '/events', label: 'Événements', auth: false },
+  { to: '/events', label: 'Evenements', auth: false },
   { to: '/registrations', label: 'Mes inscriptions', auth: true },
   { to: '/dashboard', label: 'Tableau de bord', auth: true }
 ]
 
 const links = computed(() => navLinks.filter((link) => !link.auth || authStore.isAuthenticated))
 
-async function handleLogout() {
-  await authStore.logout()
+function handleLogout() {
+  authStore.logout()
   mobileMenuOpen.value = false
   router.push('/login')
 }
 </script>
 
 <template>
-  <header
-    class="navbar"
-    role="banner"
-  >
-    <div class="navbar-inner container">
-      <RouterLink
-        to="/"
-        class="navbar-brand"
-        aria-label="EventHub - Accueil"
-      >
-        <span
-          class="brand-mark"
-          aria-hidden="true"
-        >E</span>
-        <span class="brand-name">EventHub</span>
+  <header class="sticky top-0 z-40 bg-brand-950 text-white shadow-md" role="banner">
+    <div class="mx-auto flex min-h-16 max-w-6xl items-center gap-4 px-4">
+      <RouterLink to="/" class="flex items-center gap-2 font-bold text-lg" aria-label="EventHub - Accueil">
+        <CalendarCheck class="h-7 w-7 text-brand-300" aria-hidden="true" />
+        <span>EventHub</span>
       </RouterLink>
 
       <button
-        class="navbar-toggle"
         type="button"
-        :aria-expanded="String(mobileMenuOpen)"
+        class="ml-auto inline-flex h-10 w-10 items-center justify-center rounded-md border border-white/25 md:hidden"
+        :aria-expanded="mobileMenuOpen"
         aria-controls="main-menu"
         aria-label="Ouvrir le menu"
         @click="mobileMenuOpen = !mobileMenuOpen"
       >
-        <span aria-hidden="true">{{ mobileMenuOpen ? '✕' : '☰' }}</span>
+        <X v-if="mobileMenuOpen" class="h-5 w-5" aria-hidden="true" />
+        <Menu v-else class="h-5 w-5" aria-hidden="true" />
       </button>
 
       <nav
-        :id="mobileMenuOpen ? 'main-menu' : undefined"
-        class="navbar-nav"
-        :class="{ open: mobileMenuOpen }"
+        id="main-menu"
+        class="ml-auto hidden items-center gap-1 md:flex"
       >
         <RouterLink
           v-for="link in links"
           :key="link.to"
           :to="link.to"
-          class="nav-link"
-          :class="{ active: $route.path === link.to }"
-          @click="mobileMenuOpen = false"
+          class="rounded-md px-3.5 py-2 text-sm font-medium text-slate-300 transition-colors hover:bg-white/10 hover:text-white"
+          :class="{ 'bg-white/10 text-white': route.path === link.to }"
         >
           {{ link.label }}
         </RouterLink>
       </nav>
 
-      <div
-        class="navbar-actions"
-        :class="{ open: mobileMenuOpen }"
-      >
+      <div class="hidden items-center gap-2 md:flex">
         <template v-if="authStore.isAuthenticated">
-          <span
-            class="navbar-user"
-            aria-hidden="true"
-          >
-            {{ authStore.user?.name || authStore.user?.email || 'Connecté' }}
-          </span>
+          <span class="text-sm font-medium text-slate-300">{{ authStore.user?.email }}</span>
           <button
-            class="btn btn-ghost btn-sm"
             type="button"
+            class="rounded-md px-3 py-1.5 text-sm font-medium text-slate-200 transition-colors hover:bg-white/10"
             @click="handleLogout"
           >
-            Déconnexion
+            Deconnexion
           </button>
         </template>
         <template v-else>
-          <RouterLink
-            to="/login"
-            class="btn btn-ghost btn-sm"
-            @click="mobileMenuOpen = false"
-          >
+          <RouterLink to="/login" class="rounded-md px-3 py-1.5 text-sm font-medium text-slate-200 hover:bg-white/10">
             Se connecter
           </RouterLink>
           <RouterLink
             to="/register"
-            class="btn btn-primary btn-sm"
-            @click="mobileMenuOpen = false"
+            class="rounded-md bg-brand-600 px-3.5 py-1.5 text-sm font-medium text-white transition-colors hover:bg-brand-500"
           >
             S'inscrire
           </RouterLink>
         </template>
       </div>
     </div>
+
+    <nav v-if="mobileMenuOpen" class="flex flex-col gap-1 border-t border-white/10 px-4 py-3 md:hidden">
+      <RouterLink
+        v-for="link in links"
+        :key="link.to"
+        :to="link.to"
+        class="rounded-md px-3 py-2.5 text-sm font-medium text-slate-200 hover:bg-white/10"
+        @click="mobileMenuOpen = false"
+      >
+        {{ link.label }}
+      </RouterLink>
+      <template v-if="authStore.isAuthenticated">
+        <button type="button" class="rounded-md px-3 py-2.5 text-left text-sm font-medium text-slate-200 hover:bg-white/10" @click="handleLogout">
+          Deconnexion
+        </button>
+      </template>
+      <template v-else>
+        <RouterLink to="/login" class="rounded-md px-3 py-2.5 text-sm font-medium text-slate-200 hover:bg-white/10" @click="mobileMenuOpen = false">
+          Se connecter
+        </RouterLink>
+        <RouterLink to="/register" class="rounded-md px-3 py-2.5 text-sm font-medium text-white bg-brand-600 hover:bg-brand-500" @click="mobileMenuOpen = false">
+          S'inscrire
+        </RouterLink>
+      </template>
+    </nav>
   </header>
 </template>
-
-<style scoped>
-.navbar {
-  background: var(--color-background-deep);
-  color: #fff;
-  position: sticky;
-  top: 0;
-  z-index: 40;
-  box-shadow: var(--shadow-md);
-}
-
-.navbar-inner {
-  display: flex;
-  align-items: center;
-  gap: var(--space-4);
-  min-height: var(--header-height);
-}
-
-.navbar-brand {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  text-decoration: none;
-  color: #fff;
-  font-weight: 700;
-  font-size: var(--font-size-xl);
-}
-
-.brand-mark {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: var(--radius-sm);
-  background: var(--color-primary);
-  font-weight: 800;
-}
-
-.navbar-nav {
-  display: flex;
-  align-items: center;
-  gap: var(--space-1);
-  margin-left: auto;
-}
-
-.nav-link {
-  color: #cbd5e1;
-  text-decoration: none;
-  padding: 0.5rem 0.875rem;
-  border-radius: var(--radius-sm);
-  font-size: var(--font-size-sm);
-  font-weight: 500;
-  transition: color var(--transition-fast), background var(--transition-fast);
-}
-
-.nav-link:hover,
-.nav-link.active {
-  color: #fff;
-  background: rgba(255, 255, 255, 0.08);
-}
-
-.navbar-actions {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  margin-left: var(--space-3);
-}
-
-.navbar-user {
-  font-size: var(--font-size-sm);
-  color: #cbd5e1;
-  font-weight: 600;
-}
-
-.navbar-toggle {
-  display: none;
-  margin-left: auto;
-  background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  border-radius: var(--radius-sm);
-  color: #fff;
-  width: 40px;
-  height: 40px;
-  font-size: 1.25rem;
-  cursor: pointer;
-}
-
-/* ---------- Tablette : masquer une partie de la navigation ---------- */
-@media (max-width: 960px) {
-  .navbar-nav .nav-link:nth-child(3),
-  .navbar-nav .nav-link:nth-child(4) {
-    display: none;
-  }
-}
-
-/* ---------- Mobile : menu hamburger ---------- */
-@media (max-width: 720px) {
-  .navbar-nav,
-  .navbar-actions {
-    display: none;
-  }
-
-  .navbar-toggle {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .navbar-nav.open,
-  .navbar-actions.open {
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .navbar-nav.open {
-    width: 100%;
-    margin-left: 0;
-    padding-top: var(--space-2);
-    order: 3;
-  }
-
-  .navbar-actions.open {
-    margin-left: 0;
-    width: 100%;
-    padding-top: var(--space-3);
-    order: 4;
-    flex-direction: row;
-    justify-content: flex-end;
-  }
-
-  .navbar-inner {
-    flex-wrap: wrap;
-    padding-top: var(--space-3);
-    padding-bottom: var(--space-3);
-  }
-
-  .nav-link {
-    padding: 0.75rem var(--space-3);
-  }
-}
-</style>

@@ -1,14 +1,16 @@
 <script setup>
 /**
- * Bandeau d'erreur réutilisable.
+ * Bandeau d'erreur reutilisable.
  *
  * Props :
  * - message : texte de l'erreur (obligatoire)
- * - retryLabel : libellé du bouton de relance (optionnel)
+ * - retryLabel : libelle du bouton de relance (optionnel)
  *
- * Événements :
- * - retry : émis lorsque l'utilisateur clique sur « Réessayer »
+ * Evenements :
+ * - retry : emis lorsque l'utilisateur clique sur « Reessayer »
  */
+import { TriangleAlert } from 'lucide-vue-next'
+
 defineProps({
   message: {
     type: String,
@@ -16,7 +18,7 @@ defineProps({
   },
   retryLabel: {
     type: String,
-    default: 'Réessayer'
+    default: 'Reessayer'
   }
 })
 
@@ -25,48 +27,20 @@ defineEmits(['retry'])
 
 <template>
   <div
-    class="error-message"
+    class="flex flex-wrap items-center gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
     role="alert"
   >
-    <span
-      class="error-icon"
-      aria-hidden="true"
-    >⚠</span>
-    <p class="error-text">
+    <TriangleAlert class="h-5 w-5 shrink-0" aria-hidden="true" />
+    <p class="min-w-[120px] flex-1">
       {{ message }}
     </p>
     <button
       v-if="$slots.retry"
       type="button"
-      class="btn btn-ghost btn-sm"
+      class="rounded-md border border-red-300 px-3 py-1 text-sm font-medium text-red-700 transition-colors hover:bg-red-100"
       @click="$emit('retry')"
     >
       {{ retryLabel }}
     </button>
   </div>
 </template>
-
-<style scoped>
-.error-message {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  flex-wrap: wrap;
-  background: var(--color-danger-soft);
-  border: 1px solid #fecaca;
-  color: var(--color-danger);
-  padding: var(--space-3) var(--space-4);
-  border-radius: var(--radius-sm);
-  font-size: var(--font-size-sm);
-}
-
-.error-icon {
-  font-size: var(--font-size-lg);
-  flex-shrink: 0;
-}
-
-.error-text {
-  flex: 1;
-  min-width: 120px;
-}
-</style>

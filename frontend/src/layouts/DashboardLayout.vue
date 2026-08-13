@@ -1,322 +1,113 @@
 <script setup>
 /**
- * Layout du tableau de bord (pages d'administration / gestion).
+ * Layout du tableau de bord (pages de gestion).
  *
- * Comporte une barre latérale de navigation dédiée à la gestion :
- * Tableau de bord, Événements, Participants, Inscriptions, Profil.
- *
- * Responsive : sur mobile, la sidebar est repliable via un bouton.
+ * Barre laterale de navigation dediee : Tableau de bord, Evenements,
+ * Profil participant, Mes inscriptions. Repliable sur mobile.
  */
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
+import { useRouter } from 'vue-router'
+import {
+  CalendarCheck,
+  LayoutDashboard,
+  CalendarDays,
+  User,
+  ClipboardList,
+  Home,
+  LogOut,
+  Menu,
+  X
+} from 'lucide-vue-next'
 import { useAuthStore } from '../stores'
 
 const sidebarOpen = ref(false)
 const authStore = useAuthStore()
+const router = useRouter()
 
-function toggleSidebar() {
-  sidebarOpen.value = !sidebarOpen.value
-}
+const participantLink = computed(() =>
+  authStore.participantId
+    ? { name: 'participant-profile', params: { id: authStore.participantId } }
+    : { name: 'participant-profile', params: { id: 'nouveau' } }
+)
 
-/**
- * Affichage de l'utilisateur connecté depuis le jeton JWT
- * (authStore.user, hydraté au démarrage de l'application).
- */
-const userDisplayName = ref('Utilisateur')
-const userRole = ref('')
-
-if (authStore.user) {
-  const user = authStore.user
-  userDisplayName.value = user.fullName || user.name || `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Utilisateur'
-  userRole.value = user.role || ''
+function handleLogout() {
+  authStore.logout()
+  router.push('/login')
 }
 </script>
 
 <template>
-  <div class="layout-dashboard">
+  <div class="flex min-h-screen bg-slate-50">
     <button
-      class="dashboard-menu-toggle"
       type="button"
-      :aria-expanded="String(sidebarOpen)"
+      class="fixed left-3 top-3 z-40 inline-flex h-11 w-11 items-center justify-center rounded-md border border-white/20 bg-brand-950 text-white md:hidden"
+      :aria-expanded="sidebarOpen"
       aria-label="Ouvrir le menu du tableau de bord"
-      @click="toggleSidebar"
+      @click="sidebarOpen = !sidebarOpen"
     >
-      ☰
+      <X v-if="sidebarOpen" class="h-5 w-5" aria-hidden="true" />
+      <Menu v-else class="h-5 w-5" aria-hidden="true" />
     </button>
-
-    <aside
-      class="sidebar"
-      :class="{ open: sidebarOpen }"
-      :aria-hidden="String(!sidebarOpen && 'mobile')"
-      @click="sidebarOpen = false"
-    >
-      <div class="sidebar-header">
-        <RouterLink
-          to="/"
-          class="brand"
-        >
-          EventHub
-        </RouterLink>
-        <span class="badge badge-info">Admin</span>
-      </div>
-      <nav
-        class="sidebar-nav"
-        aria-label="Navigation du tableau de bord"
-      >
-        <RouterLink
-          to="/dashboard"
-          class="nav-link"
-        >
-          <span
-            class="nav-icon"
-            aria-hidden="true"
-          >📊</span> Tableau de bord
-        </RouterLink>
-        <RouterLink
-          to="/events"
-          class="nav-link"
-        >
-          <span
-            class="nav-icon"
-            aria-hidden="true"
-          >📅</span> Événements
-        </RouterLink>
-        <RouterLink
-          :to="{ name: 'participant-profile', params: { id: 1 } }"
-          class="nav-link"
-        >
-          <span
-            class="nav-icon"
-            aria-hidden="true"
-          >👤</span> Participant
-        </RouterLink>
-        <RouterLink
-          to="/registrations"
-          class="nav-link"
-        >
-          <span
-            class="nav-icon"
-            aria-hidden="true"
-          >📋</span> Mes inscriptions
-        </RouterLink>
-      </nav>
-      <div class="sidebar-footer">
-        <RouterLink
-          to="/"
-          class="nav-link"
-        >
-          <span
-            class="nav-icon"
-            aria-hidden="true"
-          >🏠</span> Retour au site
-        </RouterLink>
-        <RouterLink
-          to="/login"
-          class="nav-link"
-        >
-          <span
-            class="nav-icon"
-            aria-hidden="true"
-          >🚪</span> Déconnexion
-        </RouterLink>
-      </div>
-    </aside>
 
     <div
       v-if="sidebarOpen"
-      class="sidebar-backdrop"
+      class="fixed inset-0 z-30 bg-slate-900/50 md:hidden"
       aria-hidden="true"
       @click="sidebarOpen = false"
     />
 
-    <div class="dashboard-body">
-      <header class="dashboard-header">
-        <h1 class="page-title">
-          <slot name="title">
-            Tableau de bord
-          </slot>
+    <aside
+      class="fixed inset-y-0 left-0 z-40 flex w-64 flex-col overflow-y-auto bg-brand-950 text-slate-300 transition-transform md:static md:translate-x-0"
+      :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full'"
+    >
+      <div class="flex items-center justify-between gap-2 border-b border-white/10 px-4 py-4">
+        <RouterLink to="/" class="flex items-center gap-2 text-lg font-bold text-white">
+          <CalendarCheck class="h-6 w-6 text-brand-300" aria-hidden="true" />
+          EventHub
+        </RouterLink>
+      </div>
+
+      <nav class="flex flex-1 flex-col gap-1 p-3" aria-label="Navigation du tableau de bord" @click="sidebarOpen = false">
+        <RouterLink to="/dashboard" class="flex items-center gap-3 rounded-md px-4 py-2.5 transition-colors hover:bg-white/10 hover:text-white" active-class="bg-white/10 text-white">
+          <LayoutDashboard class="h-4 w-4" aria-hidden="true" /> Tableau de bord
+        </RouterLink>
+        <RouterLink to="/dashboard/events" class="flex items-center gap-3 rounded-md px-4 py-2.5 transition-colors hover:bg-white/10 hover:text-white" active-class="bg-white/10 text-white">
+          <CalendarDays class="h-4 w-4" aria-hidden="true" /> Evenements
+        </RouterLink>
+        <RouterLink :to="participantLink" class="flex items-center gap-3 rounded-md px-4 py-2.5 transition-colors hover:bg-white/10 hover:text-white" active-class="bg-white/10 text-white">
+          <User class="h-4 w-4" aria-hidden="true" /> Mon profil
+        </RouterLink>
+        <RouterLink to="/registrations" class="flex items-center gap-3 rounded-md px-4 py-2.5 transition-colors hover:bg-white/10 hover:text-white" active-class="bg-white/10 text-white">
+          <ClipboardList class="h-4 w-4" aria-hidden="true" /> Mes inscriptions
+        </RouterLink>
+      </nav>
+
+      <div class="flex flex-col gap-1 border-t border-white/10 p-3">
+        <RouterLink to="/" class="flex items-center gap-3 rounded-md px-4 py-2.5 transition-colors hover:bg-white/10 hover:text-white">
+          <Home class="h-4 w-4" aria-hidden="true" /> Retour au site
+        </RouterLink>
+        <button type="button" class="flex items-center gap-3 rounded-md px-4 py-2.5 text-left transition-colors hover:bg-white/10 hover:text-white" @click="handleLogout">
+          <LogOut class="h-4 w-4" aria-hidden="true" /> Deconnexion
+        </button>
+      </div>
+    </aside>
+
+    <div class="flex flex-1 flex-col">
+      <header class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-6 py-4">
+        <h1 class="text-lg font-semibold text-slate-900">
+          <slot name="title">Tableau de bord</slot>
         </h1>
-        <div class="user-info">
-          <span class="user-name">{{ userDisplayName }}</span>
-          <span
-            v-if="userRole"
-            class="badge badge-neutral"
-          >{{ userRole }}</span>
+        <div v-if="authStore.user" class="flex items-center gap-2">
+          <span class="font-medium text-slate-700">{{ authStore.user.email }}</span>
+          <span class="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600">
+            {{ authStore.user.role }}
+          </span>
         </div>
       </header>
 
-      <main class="dashboard-main">
+      <main class="flex-1 p-6">
         <RouterView />
       </main>
     </div>
   </div>
 </template>
-
-<style scoped>
-.layout-dashboard {
-  display: flex;
-  min-height: 100vh;
-  background: var(--color-background-soft);
-}
-
-.dashboard-menu-toggle {
-  display: none;
-  position: fixed;
-  top: var(--space-3);
-  left: var(--space-3);
-  z-index: 45;
-  width: 44px;
-  height: 44px;
-  background: var(--color-background-deep);
-  color: #fff;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: var(--radius-sm);
-  font-size: 1.25rem;
-  cursor: pointer;
-}
-
-.sidebar {
-  width: 260px;
-  background: var(--color-background-deep);
-  color: #cbd5e1;
-  display: flex;
-  flex-direction: column;
-  position: fixed;
-  top: 0;
-  left: 0;
-  bottom: 0;
-  overflow-y: auto;
-  z-index: 50;
-}
-
-.sidebar-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: var(--space-4);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.brand {
-  font-size: var(--font-size-lg);
-  font-weight: 700;
-  color: #fff;
-  text-decoration: none;
-}
-
-.sidebar-nav {
-  display: flex;
-  flex-direction: column;
-  padding: var(--space-3);
-  flex: 1;
-}
-
-.sidebar-footer {
-  display: flex;
-  flex-direction: column;
-  padding: var(--space-3);
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.nav-link {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  color: #cbd5e1;
-  text-decoration: none;
-  padding: var(--space-3) var(--space-4);
-  border-radius: var(--radius-sm);
-  transition: background var(--transition-fast), color var(--transition-fast);
-}
-
-.nav-link:hover,
-.nav-link.router-link-active {
-  background: rgba(255, 255, 255, 0.08);
-  color: #fff;
-}
-
-.nav-icon {
-  font-size: var(--font-size-base);
-}
-
-.sidebar-backdrop {
-  display: none;
-  position: fixed;
-  inset: 0;
-  background: rgba(15, 23, 42, 0.5);
-  z-index: 40;
-}
-
-.dashboard-body {
-  flex: 1;
-  margin-left: 260px;
-  display: flex;
-  flex-direction: column;
-}
-
-.dashboard-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  background: var(--color-surface);
-  padding: var(--space-4) var(--space-6);
-  border-bottom: 1px solid var(--color-border);
-  flex-wrap: wrap;
-}
-
-.page-title {
-  font-size: var(--font-size-lg);
-  color: var(--color-ink);
-}
-
-.user-info {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-
-.user-name {
-  font-weight: 600;
-  color: var(--color-ink);
-}
-
-.dashboard-main {
-  flex: 1;
-  padding: var(--space-6);
-}
-
-/* ---------- Mobile : sidebar repliable ---------- */
-@media (max-width: 860px) {
-  .dashboard-menu-toggle {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .sidebar {
-    transform: translateX(-100%);
-    transition: transform 200ms ease;
-  }
-
-  .sidebar.open {
-    transform: translateX(0);
-  }
-
-  .sidebar-backdrop {
-    display: block;
-  }
-
-  .dashboard-body {
-    margin-left: 0;
-  }
-
-  .dashboard-main {
-    padding: var(--space-4);
-    padding-top: calc(var(--space-14, 3.5rem));
-  }
-
-  .dashboard-header {
-    padding: var(--space-3) var(--space-4);
-  }
-}
-</style>

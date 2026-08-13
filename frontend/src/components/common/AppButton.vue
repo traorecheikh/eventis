@@ -1,14 +1,15 @@
 <script setup>
 /**
- * Bouton réutilisable de l'application.
+ * Bouton reutilisable de l'application.
  *
  * Props :
- * - variant : 'primary' | 'secondary' | 'ghost' | 'danger' (défaut 'primary')
- * - size    : 'sm' | 'md' | 'lg' (défaut 'md')
- * - disabled : désactive le bouton
- * - loading  : affiche un mini spinner et désactive le bouton
+ * - variant : 'primary' | 'secondary' | 'ghost' | 'danger' (defaut 'primary')
+ * - size    : 'sm' | 'md' | 'lg' (defaut 'md')
+ * - disabled : desactive le bouton
+ * - loading  : affiche un mini spinner et desactive le bouton
  */
 import { computed } from 'vue'
+import { Loader2 } from 'lucide-vue-next'
 
 const props = defineProps({
   variant: {
@@ -31,11 +32,23 @@ const props = defineProps({
 
 defineEmits(['click'])
 
-const classes = computed(() => [
-  'btn',
-  `btn-${props.variant}`,
-  { 'btn-sm': props.size === 'sm', 'btn-lg': props.size === 'lg' }
-])
+const base =
+  'inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-55 disabled:cursor-not-allowed'
+
+const variants = {
+  primary: 'bg-brand-600 text-white hover:bg-brand-700 focus-visible:ring-brand-600',
+  secondary: 'bg-white text-brand-700 border border-brand-200 hover:bg-brand-50 focus-visible:ring-brand-600',
+  ghost: 'bg-transparent text-slate-600 hover:bg-slate-100 focus-visible:ring-slate-400',
+  danger: 'bg-red-600 text-white hover:bg-red-700 focus-visible:ring-red-600'
+}
+
+const sizes = {
+  sm: 'h-8 px-3 text-sm',
+  md: 'h-10 px-4 text-sm',
+  lg: 'h-12 px-6 text-base'
+}
+
+const classes = computed(() => [base, variants[props.variant], sizes[props.size]])
 </script>
 
 <template>
@@ -45,49 +58,7 @@ const classes = computed(() => [
     :disabled="disabled || loading"
     @click="$emit('click', $event)"
   >
-    <span
-      v-if="loading"
-      class="btn-loading-spinner"
-      aria-hidden="true"
-    />
-    <span><slot /></span>
+    <Loader2 v-if="loading" class="h-4 w-4 animate-spin" aria-hidden="true" />
+    <slot />
   </button>
 </template>
-
-<style scoped>
-.btn {
-  position: relative;
-}
-
-.btn:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-
-.btn-loading-spinner {
-  width: 14px;
-  height: 14px;
-  border: 2px solid rgba(255, 255, 255, 0.4);
-  border-top-color: #fff;
-  border-radius: 50%;
-  animation: spin 0.7s linear infinite;
-}
-
-.btn-secondary .btn-loading-spinner,
-.btn-ghost .btn-loading-spinner {
-  border-color: rgba(29, 78, 216, 0.35);
-  border-top-color: var(--color-primary);
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .btn-loading-spinner {
-    animation: none;
-  }
-}
-</style>

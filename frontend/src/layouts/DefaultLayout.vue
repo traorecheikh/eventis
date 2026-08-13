@@ -1,45 +1,20 @@
 <script setup>
 /**
- * Layout par défaut de l'application (pages publiques).
+ * Layout par defaut de l'application (pages publiques).
  *
- * Comporte la Navbar et le Footer réutilisables, ainsi que
- * le slot principal de la page.
- * Utilisé pour : Accueil, Événements, Détails, Connexion,
- * Inscription, etc.
+ * Utilise pour : Accueil, Evenements, Details, Connexion,
+ * Inscription, Mes inscriptions, Profil participant.
  */
 import Navbar from '../components/layout/Navbar.vue'
 import Footer from '../components/layout/Footer.vue'
 </script>
 
 <template>
-  <div class="layout-default">
+  <div class="flex min-h-screen flex-col bg-slate-50">
     <Navbar />
-
-    <main class="app-main container">
+    <main class="mx-auto w-full max-w-6xl flex-1 px-4 py-8 md:py-10">
       <RouterView />
     </main>
-
     <Footer />
   </div>
 </template>
-
-<style scoped>
-.layout-default {
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
-}
-
-.app-main {
-  flex: 1;
-  padding-top: var(--space-8);
-  padding-bottom: var(--space-8);
-}
-
-@media (max-width: 720px) {
-  .app-main {
-    padding-top: var(--space-5);
-    padding-bottom: var(--space-5);
-  }
-}
-</style>
