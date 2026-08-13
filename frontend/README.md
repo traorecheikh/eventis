@@ -1,270 +1,150 @@
-# EventHub — Frontend
+# EventHub, Frontend
 
-**EventHub** est une application web de **gestion d'événements** conçue selon une architecture multi-microservices. Ce dépôt, `frontend/`, contient le client web : une application **Vue 3** construite avec **Vite**, qui consomme les API REST des microservices backend (auth, events, participants, registrations).
+Client web Vue 3 de la plateforme EventHub. Consomme les quatre microservices
+backend (`auth-service`, `event-service`, `participants-service`,
+`registrations-service`) via la passerelle Nginx. Voir le
+[README racine](../README.md) et [AGENTS.md](../AGENTS.md) pour la vue
+d'ensemble du depot.
 
-Le frontend a été développé par phases successives (1 à 9) : initialisation, navigation, composants et design system, gestion d'état Pinia, intégration des services API, fonctionnalités métier, tests automatisés et containerisation Docker de production.
+## Fonctionnalites
 
-## Présentation des fonctionnalités
+- **Authentification** : inscription (role organisateur ou participant),
+  connexion, deconnexion, session JWT restauree au demarrage, deconnexion
+  automatique sur reponse 401.
+- **Evenements** : liste paginee, detail, disponibilite en temps reel
+  (places restantes), creation (organisateur).
+- **Participants** : creation de profil (formulaire public), consultation et
+  modification du profil.
+- **Inscriptions** : inscription a un evenement (lie a un profil participant
+  existant), annulation, liste "Mes inscriptions", refus explicite du
+  surbooking (le backend refuse, l'interface l'affiche, jamais de succes
+  simule).
+- **Tableau de bord** : statistiques globales issues de
+  `GET /registrations/stats` (inscriptions confirmees/annulees, evenements,
+  participants), graphique des inscriptions par evenement.
 
-L'application couvre quatre domaines fonctionnels principaux. Les **événements** peuvent être listés, recherchés, filtrés par catégorie, consultés en détail, créés, modifiés et supprimés par les organisateurs (mode administration via `?admin=1`). Les **inscriptions** permettent à un participant connecté de s'inscrire à un événement (formulaire prérempli depuis sa session), d'annuler son inscription et de consulter la liste de ses inscriptions. Les **participants** disposent d'une page de profil. Le **tableau de bord** agrège les statistiques calculées à partir des données réelles de l'API (événements actifs, inscrits, places restantes, taux de remplissage, inscriptions mensuelles). L'**authentification** est gérée par jeton JWT : connexion, inscription, déconnexion, hydratation de session au démarrage, routes protégées et gestion des sessions expirées (HTTP 401).
+Un compte auth-service n'est pas automatiquement lie a un profil
+participants-service (deux bases separees, voir AGENTS.md section 2) : un
+utilisateur avec le role participant doit creer son profil participant avant
+de pouvoir s'inscrire a un evenement.
 
 ## Technologies
 
-| Élément | Technologie |
-| --- | --- |
+| Element | Technologie |
+|---|---|
 | Framework | Vue 3 (Composition API, `<script setup>`) |
-| Bundler | Vite 6 |
-| Langage | JavaScript (ES Modules) |
-| État | Pinia |
-| Routing | Vue Router (history mode) |
+| Bundler | Vite 8 |
+| Etat | Pinia |
+| Routage | Vue Router (history mode) |
 | HTTP | Axios |
-| Tests unitaires | Vitest 4 + @vue/test-utils + happy-dom |
-| Tests E2E | Playwright (Chromium) |
-| Conteneurisation | Docker multi-stage (Node 24 Alpine → Nginx 1.27 Alpine) |
+| Style | Tailwind CSS 4 |
+| Composants accessibles | Reka UI (dialogues, ...) |
+| Icones | lucide-vue-next |
+| Notifications | vue-sonner |
+| Transitions | @vueuse/motion |
+| Tests unitaires | Vitest + @vue/test-utils + happy-dom |
+| Tests bout en bout | Playwright |
+| Client API genere | Orval, voir [ADR 0011](../knowledge-base/adr/0011-openapi-genere-orval.md) |
 
 ## Architecture
 
-L'application suit strictement la chaîne de responsabilité suivante : aucun composant ne connaît Axios, aucun composant ne connaît les URLs d'API, et la logique d'état n'est jamais dupliquée dans les vues.
-
 ```text
-View (Vue)
-  ↓
-Component (réutilisable)
-  ↓
-Pinia Store (état : data / loading / error / success)
-  ↓
-Service API (auth, event, participant, registration)
-  ↓
-Axios (instance api.js : baseURL, intercepteurs 401)
-  ↓
-Backend (microservices REST)
+View (Vue) -> Component -> Store Pinia (data/loading/error/success)
+  -> Service API (auth/event/participant/registration) -> Axios (api.js)
+  -> Passerelle Nginx -> microservice backend
 ```
 
-Le store `eventStore` illustre ce flux pour les événements : la vue `EventsView` délègue au composant `EventList`, qui invoque `eventStore.fetchEvents()` ; le store appelle `eventService.getEvents()`, qui utilise l'instance Axios configurée par `api.js`, qui joint `/api/events`.
+Aucune donnee de repli locale : si un backend est indisponible ou renvoie une
+erreur, le store expose `error` et l'interface l'affiche. Jamais de succes ou
+de contenu fabrique pour masquer une panne (voir AGENTS.md : refuser plutot
+que risquer une incoherence).
 
-### Garde de routes et JWT
+### Garde de routes
 
-Un garde global Vue Router protège `/dashboard` et `/registrations` : sans token valide, redirection vers `/login?redirect=...`. Le jeton JWT est stocké en `localStorage` (clé `eventhub_token`), décodé au démarrage pour hydrater la session (`authStore.hydrateFromToken()`), et supprimé automatiquement par l'intercepteur Axios en cas de réponse HTTP 401.
+`router/index.js` protege `/dashboard` et `/registrations` (jeton JWT
+requis). Le jeton est stocke dans `localStorage`, decode au demarrage pour
+restaurer la session (`authStore.hydrateFromToken`) et supprime
+automatiquement par l'intercepteur Axios sur une reponse 401.
 
-### Repli local (mode dégradé)
-
-Si le backend est indisponible, les stores replient sur les données locales (`mockData.js`) pour ne jamais afficher une interface vide. Ce comportement est documenté et couvert par les tests.
-
-## Arborescence du projet
+## Structure
 
 ```text
 frontend/
-├── public/                        # Fichiers statiques servis tels quels
+├── public/
 ├── src/
-│   ├── assets/
-│   │   ├── images/                # Images et données mockées (mockData.js)
-│   │   ├── icons/                 # Icônes
-│   │   └── styles/                # Système de design
-│   │       ├── tokens.css         # Variables CSS (couleurs, espacements)
-│   │       ├── utilities.css      # Boutons, formulaires, badges, cartes
-│   │       └── main.css           # Point d'entrée des styles
 │   ├── components/
-│   │   ├── common/                # AppButton, AppModal, LoadingSpinner, ErrorMessage
-│   │   ├── layout/                # Navbar, Footer
-│   │   ├── events/                # EventCard, EventForm, EventFilter, EventList, EventDetails
-│   │   ├── participants/          # ParticipantForm, ParticipantCard
-│   │   ├── registrations/         # RegistrationForm, RegistrationCard
-│   │   └── dashboard/             # StatCard, RegistrationChart (SVG), EventStatistics
-│   ├── layouts/
-│   │   ├── DefaultLayout.vue      # Pages publiques (header + footer)
-│   │   └── DashboardLayout.vue    # Espace de gestion (sidebar)
-│   ├── router/index.js            # Routes et garde de navigation
-│   ├── stores/                    # Stores Pinia
-│   │   ├── index.js               # Exporte les 4 stores
-│   │   ├── authStore.js           # Utilisateur, connexion, déconnexion
-│   │   ├── eventStore.js          # Événements et filtres
-│   │   ├── participantStore.js    # Profils participants
-│   │   └── registrationStore.js   # Inscriptions, création, annulation
-│   ├── services/                  # Couche d'accès API (Axios)
-│   │   ├── api.js                 # Instance Axios (baseURL, intercepteur 401)
-│   │   ├── token.js               # Gestion JWT (localStorage, expiration)
-│   │   ├── authService.js         # login, register, fetchCurrentUser, logout
-│   │   ├── eventService.js        # getEvents, getEventById, createEvent, updateEvent, deleteEvent
-│   │   ├── participantService.js  # getParticipants, getParticipantById
-│   │   ├── registrationService.js # getRegistrations, createRegistration, cancelRegistration
-│   │   └── registrationMapper.js  # Adaptation du payload d'inscription au format backend
-│   ├── views/                     # Vues (pages)
-│   │   ├── HomeView.vue           # /                      Accueil
-│   │   ├── LoginView.vue          # /login                 Connexion
-│   │   ├── RegisterView.vue       # /register              Création de compte
-│   │   ├── EventsView.vue         # /events                Liste des événements
-│   │   ├── EventDetailsView.vue   # /events/:id            Détails (+ édition/suppression admin)
-│   │   ├── ParticipantProfileView.vue  # /participants/:id Profil participant
-│   │   ├── RegistrationView.vue   # /events/:id/register   Inscription
-│   │   ├── MyRegistrationsView.vue# /registrations         Mes inscriptions
-│   │   ├── DashboardView.vue      # /dashboard             Tableau de bord
-│   │   └── NotFoundView.vue       # 404                    Page introuvable
-│   ├── App.vue                    # Composant racine
-│   └── main.js                    # Point d'entrée (router + Pinia + hydratation)
-├── tests/
-│   └── e2e/app.spec.js            # Tests end-to-end Playwright (12 scénarios)
-├── .env.example                   # Variables d'environnement de référence
-├── .gitignore
-├── index.html
-├── nginx.conf                     # Configuration Nginx de production
-├── entrypoint.sh                  # Substitution BACKEND_URL au démarrage du conteneur
-├── docker-compose.yml             # Démo : frontend + backend mock
-├── Dockerfile                     # Build multi-stage production
-├── package.json
-├── vite.config.js                 # Vite + configuration Vitest
-└── README.md
+│   │   ├── common/          AppButton, AppModal (reka-ui Dialog), LoadingSpinner, ErrorMessage
+│   │   ├── layout/           Navbar, Footer
+│   │   ├── events/           EventCard, EventForm, EventFilter, EventList, EventDetails
+│   │   ├── participants/     ParticipantForm, ParticipantCard
+│   │   ├── registrations/    RegistrationCard
+│   │   └── dashboard/        StatCard, RegistrationChart (SVG), EventStatistics
+│   ├── layouts/               DefaultLayout (public), DashboardLayout (espace de gestion)
+│   ├── router/index.js
+│   ├── stores/                 authStore, eventStore, participantStore, registrationStore
+│   ├── services/                api.js (Axios), token.js, authService, eventService,
+│   │                              participantService, registrationService
+│   ├── utils/registrationStatus.js
+│   ├── style.css               point d'entree Tailwind, jetons de couleur (@theme)
+│   ├── App.vue
+│   └── main.js
+├── tests/e2e/                  scenarios Playwright
+├── orval.config.js             genere le client API depuis l'OpenAPI des 4 services
+├── vite.config.js               Vite + Tailwind + configuration Vitest
+└── package.json
 ```
 
-## Installation et démarrage (développement)
+Le frontend n'a pas de `Dockerfile` propre : il est construit et servi par
+`gateway/Dockerfile` (ADR 0005), qui produit l'image Nginx unique contenant
+le build Vue et proxifiant `/api/*`.
+
+## Installation et lancement local
 
 ```bash
-code frontend            # Ouvrir dans Visual Studio Code
-cd frontend
-npm install              # Installation des dépendances
-cp .env.example .env     # Copier les variables de référence
-npm run dev              # Serveur de développement → http://localhost:3000
-```
-
-Le backend peut être le microservice réel ou le mock de démonstration fourni dans le dépôt parent (`mock-api/`) :
-
-```bash
-cd ../mock-api
 npm install
-npm start                # Backend mock → http://localhost:8080
+cp .env.example .env
+npm run dev          # http://localhost:5173, proxy /api -> http://localhost:80
 ```
+
+Le backend complet (les 4 microservices + passerelle) doit tourner en
+parallele, voir `knowledge-base/runbooks/lancer-en-local.md` ou
+`docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build`
+a la racine du depot.
 
 ## Tests
 
-Deux suites de tests automatisés sont disponibles. Les tests **unitaires** (Vitest, 92 tests) couvrent les services, les stores, les composants et la garde de routes ; les tests **end-to-end** (Playwright, 12 scénarios) reproduisent les parcours réels dans Chromium contre le backend.
-
 ```bash
-npm run test             # Tests unitaires Vitest (6 fichiers)
-npm run test:watch       # Mode watch
-npm run test:e2e         # Tests E2E Playwright (mock-api démarré automatiquement)
+npm run lint          # ESLint
+npm run test          # Vitest (unitaires)
+npm run test:watch
+npm run test:e2e       # Playwright, contre l'application reelle (voir tests/e2e)
+npm run build
+npm run preview
 ```
 
-| Fichier de tests | Ce qui est testé |
-| --- | --- |
-| `services/__tests__/token.test.js` | Décodage JWT, expiration, durée de session |
-| `services/__tests__/eventService.test.js` | Payload exact du backend (`name`, `eventDate`, `venue`, `maxCapacity`) |
-| `services/__tests__/services.test.js` | `authService`, `registrationService`, `participantService`, `getCurrentUser` |
-| `stores/__tests__/stores.test.js` | Les 4 stores (CRUD, filtres, repli local, connexion) |
-| `components/__tests__/components.test.js` | EventForm (validation), RegistrationForm, AppModal (Échap, clic arrière-plan), EventCard |
-| `router/__tests__/router.test.js` | Garde `requiresAuth`, redirection `/login?redirect=`, page 404 |
-| `tests/e2e/app.spec.js` | 9 parcours métier + erreurs réseau, 401 et 404 |
+| Fichier | Couverture |
+|---|---|
+| `services/__tests__/token.test.js` | Decodage JWT, expiration |
+| `services/__tests__/services.test.js` | authService, eventService, participantService, registrationService (contrats reels) |
+| `stores/__tests__/stores.test.js` | Les 4 stores : succes, erreurs propagees, aucun repli local |
+| `components/__tests__/components.test.js` | AppModal, LoadingSpinner, ErrorMessage, EventCard, EventForm, ParticipantForm |
+| `router/__tests__/router.test.js` | Garde `requiresAuth`, redirection `/login?redirect=` |
+| `tests/e2e/*.spec.js` | Parcours reels contre le backend (inscription, connexion, creation d'evenement, inscription a un evenement, annulation) |
 
-Les erreurs HTTP attendues (400, 401, 403, 404, 422, 500 et erreurs réseau) sont couvertes par des mocks d'Axios dans les tests unitaires et par des scénarios dédiés en E2E (coupure réseau complète, session expirée).
+## Client API genere (Orval)
 
-## Build de production
-
-```bash
-npm run build     # Génère dist/ (SPA prête à servir)
-npm run preview   # Prévisualisation locale du build
-```
-
-## Docker (production)
-
-Le `Dockerfile` applique une stratégie **multi-stage** pour produire une image minimale :
-
-| Étape | Image | Rôle |
-| --- | --- | --- |
-| Stage 1 `builder` | `node:24-alpine` | `npm ci` (dépendances), `npm run build` (Vite) |
-| Stage 2 | `nginx:1.27-alpine` | Sert le build Vue, relaie `/api/*` vers le backend |
-
-L'image finale pèse environ **75 Mo**. Le frontend appelle le backend en **relatif** (`/api/*`) : il ne contient **aucune référence aux noms de conteneurs** du backend. C'est Nginx, au démarrage, qui transmet ces appels à l'upstream défini par la variable `BACKEND_URL` (substituée par `entrypoint.sh` via `envsubst`).
-
-```bash
-# Construction
-docker build -t eventhub-frontend .
-
-# Exécution — backend accessible sur l'hôte
-docker run -p 8080:80 \
-  --add-host=host.docker.internal:host-gateway \
-  -e BACKEND_URL=http://host.docker.internal:8080 \
-  eventhub-frontend
-
-# Exécution — backend dans un autre conteneur (réseau Docker)
-docker run -p 8080:80 \
-  -e BACKEND_URL=http://backend-service:8080 \
-  eventhub-frontend
-
-# Démonstration complète avec le backend mock (docker-compose.yml)
-docker compose up --build     # → http://localhost:8080
-```
-
-La configuration Nginx (`nginx.conf`) sert la SPA (fallback `index.html` pour les routes Vue Router), active gzip, met en cache longue durée les assets fingerprintés et proxifie `/api/` avec les en-têtes `X-Forwarded-*` adaptés à un déploiement derrière un reverse-proxy supplémentaire.
+Conformement a l'[ADR 0011](../knowledge-base/adr/0011-openapi-genere-orval.md),
+`npm run generate:api` regenere l'OpenAPI des 4 services puis le client Orval
+dans `src/api/generated/` (gitignore, jamais commite). Les services
+`src/services/*.js` de ce frontend restent ecrits a la main : ils encapsulent
+la normalisation des payloads (ex. `mapEventPayload`) et l'instance Axios
+partagee (intercepteurs JWT/401), un besoin que le client genere seul ne
+couvre pas.
 
 ## Variables d'environnement
 
-```bash
-cp .env.example .env
-```
+| Variable | Lue | Role |
+|---|---|---|
+| `VITE_API_BASE_URL` | A la construction (`npm run build`) | URL de l'API vue du navigateur. `/api` en local (proxy Vite) comme en production (passerelle Nginx) |
 
-| Variable | Lecture | Rôle |
-| --- | --- | --- |
-| `VITE_API_BASE_URL` | À la construction (`npm run build` / `docker build`) | URL de l'API backend. En développement : `http://localhost:8080/api`. En production : `/api` (relayé par Nginx) |
-| `VITE_API_VERSION` | À la construction | Version de l'API |
-| `BACKEND_URL` | À l'exécution du conteneur (`-e`) | Cible du proxy Nginx pour `/api/*` |
-
-Les variables `VITE_*` sont injectées dans le code lors du build : les modifier après la construction n'a aucun effet. En production, ne pas redéfinir `VITE_API_BASE_URL` (elle reste `/api`) : c'est `BACKEND_URL` qui oriente les appels vers le backend.
-
-## API (endpoints utilisés)
-
-Le frontend n'appelle **que** les endpoints réellement implémentés par le backend (aucun endpoint fictif). En l'absence de documentations Swagger/OpenAPI officielles fournies à ce stade, les endpoints suivants sont utilisés conformément au standard REST et devront être ajustés si la documentation officielle diffère.
-
-| Méthode | Endpoint | Description |
-| --- | --- | --- |
-| `POST` | `/api/auth/login` | Connexion : `{ email, password }` → `{ token, user }` |
-| `POST` | `/api/auth/register` | Création de compte → `{ token, user }` |
-| `GET` | `/api/auth/me` | Profil de l'utilisateur connecté (Bearer requis) |
-| `GET` | `/api/events` | Liste des événements (recherche/filtres côté client) |
-| `GET` | `/api/events/:id` | Détail d'un événement |
-| `POST` | `/api/events` | Création d'un événement |
-| `PUT` | `/api/events/:id` | Modification d'un événement |
-| `DELETE` | `/api/events/:id` | Suppression d'un événement |
-| `GET` | `/api/participants` | Liste des participants |
-| `GET` | `/api/participants/:id` | Profil d'un participant |
-| `GET` | `/api/registrations` | Mes inscriptions (Bearer requis) |
-| `POST` | `/api/registrations` | Créer une inscription (`{ eventId, participant: { fullName, email, phone, dietaryRequirements } }`) |
-| `DELETE` | `/api/registrations/:id` | Annuler une inscription |
-
-Le format exact attendu par le backend Events pour la création et la modification d'un événement :
-
-```json
-{
-  "name": "Conférence IA",
-  "eventDate": "2026-09-15",
-  "venue": "Dakar",
-  "maxCapacity": 100
-}
-```
-
-Les champs `title`, `description`, `date`, `location` et `capacity` ne sont pas utilisés. Le compte de démonstration du mock backend est `marie.dupont@exemple.com` / `secret123`.
-
-## Historique des phases
-
-| Phase | Contenu | Statut |
-| --- | --- | --- |
-| 1 | Initialisation Vue 3 + Vite + Pinia + Router + Axios | Terminée |
-| 2 | Router complet, layouts, 10 vues | Terminée |
-| 3 | 15 composants réutilisables + design system (responsive, accessible) | Terminée |
-| 4 | Stores Pinia (data/loading/error/success) | Terminée |
-| 5 | Services API Events (Axios), format strict des champs | Terminée |
-| 6 | Services auth/participants/registrations, JWT, garde de routes | Terminée |
-| 7 | Fonctionnalités métier complètes (CRUD, inscriptions, dashboard, UX) | Terminée |
-| 8 | Tests unitaires (92) et E2E Playwright (12), gestion des erreurs HTTP | Terminée |
-| 9 | Dockerfile multi-stage production, Nginx, .env.example, documentation | Terminée |
-
-## Lancement rapide
-
-```bash
-code frontend
-cd frontend
-npm install
-npm run dev          # http://localhost:3000
-npm run test         # 92 tests unitaires
-npm run test:e2e     # 12 tests E2E
-npm run build        # build de production (dist/)
-docker build -t eventhub-frontend .
-docker run -p 8080:80 -e BACKEND_URL=http://host.docker.internal:8080 --add-host=host.docker.internal:host-gateway eventhub-frontend
-```
+Voir `.env.example`.

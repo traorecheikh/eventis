@@ -175,8 +175,10 @@ joindre les deux autres services lors d'une inscription.
 cd frontend && npm install && npm run dev         # port 5173
 ```
 
-Socle scaffoldé (Vue 3, Vite, Tailwind, Reka UI) : une seule vue de vérification,
-aucun écran produit. L'application est disponible sur `http://localhost:5173`.
+Application complete (Vue 3, Vite, Tailwind, Reka UI) : authentification,
+evenements, participants, inscriptions, tableau de bord. Nécessite les
+quatre microservices backend démarrés en parallèle (section 4.2). Disponible
+sur `http://localhost:5173`.
 
 ### 4.4 Vérifier
 
@@ -262,7 +264,7 @@ Les dix conteneurs doivent afficher `(healthy)` : `auth-db`, `auth-service`,
 
 | URL | Contenu |
 |---|---|
-| `http://localhost` | Interface web (socle) |
+| `http://localhost` | Interface web (application complète) |
 | `http://localhost/api/events` | API événements (liste publique paginée) |
 | `http://localhost/api/events/:id/availability` | Disponibilité d'un événement en temps réel |
 | `http://localhost/api/participants` | API participants (authentifiée) |
@@ -380,7 +382,7 @@ eventis/
 │   └── (même structure que auth-service)
 ├── registrations-service/      service des inscriptions, implémenté
 │   └── (même structure que auth-service)
-├── frontend/                   socle Vue 3 scaffoldé, aucun écran produit
+├── frontend/                   application Vue 3 complete (Tailwind, Reka UI)
 │   ├── src/
 │   ├── vite.config.js
 │   └── package.json
@@ -443,8 +445,8 @@ eventis/
 |---|---|---|
 | Jest | Tests unitaires backend | Implémenté (quatre services backend) |
 | Supertest | Tests d'intégration HTTP | Implémenté |
-| Vitest | Tests unitaires frontend | Non commencé |
-| Playwright | Tests de bout en bout | Non commencé |
+| Vitest | Tests unitaires frontend | Implémenté (80 tests) |
+| Playwright | Tests de bout en bout | Implémenté (7 scénarios, contre la pile complète) |
 
 ### Infrastructure
 
