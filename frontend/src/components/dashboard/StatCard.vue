@@ -3,9 +3,9 @@
  * Carte de statistique pour le tableau de bord.
  *
  * Props :
- * - label : libellé de la statistique (ex : « Événements actifs »)
- * - value : valeur affichée (ex : 4, « 70 % »)
- * - tone  : 'primary' | 'success' | 'warning' | 'info' (défaut 'primary')
+ * - label : libelle de la statistique
+ * - value : valeur affichee
+ * - tone  : 'primary' | 'success' | 'warning' | 'info' (defaut 'primary')
  */
 defineProps({
   label: {
@@ -22,62 +22,19 @@ defineProps({
     validator: (v) => ['primary', 'success', 'warning', 'info'].includes(v)
   }
 })
+
+const accents = {
+  primary: 'bg-brand-600',
+  success: 'bg-emerald-500',
+  warning: 'bg-accent-500',
+  info: 'bg-sky-500'
+}
 </script>
 
 <template>
-  <div
-    class="stat-card card"
-    :class="`stat-card-${tone}`"
-  >
-    <span
-      class="stat-accent"
-      aria-hidden="true"
-    />
-    <span class="stat-value">{{ value }}</span>
-    <span class="stat-label">{{ label }}</span>
+  <div class="relative overflow-hidden rounded-xl border border-slate-200 bg-white p-5">
+    <span class="absolute inset-x-0 top-0 h-1" :class="accents[tone]" aria-hidden="true" />
+    <span class="block text-3xl font-extrabold leading-tight text-slate-900">{{ value }}</span>
+    <span class="mt-1 block text-sm text-slate-500">{{ label }}</span>
   </div>
 </template>
-
-<style scoped>
-.stat-card {
-  position: relative;
-  padding: var(--space-5);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-
-.stat-accent {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  border-radius: var(--radius-md) var(--radius-md) 0 0;
-  background: var(--color-primary);
-}
-
-.stat-card-success .stat-accent {
-  background: var(--color-success);
-}
-
-.stat-card-warning .stat-accent {
-  background: var(--color-warning);
-}
-
-.stat-card-info .stat-accent {
-  background: var(--color-info);
-}
-
-.stat-value {
-  font-size: var(--font-size-3xl);
-  font-weight: 800;
-  color: var(--color-ink);
-  line-height: 1.1;
-}
-
-.stat-label {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-secondary);
-}
-</style>

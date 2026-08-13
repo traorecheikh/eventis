@@ -2,14 +2,11 @@
 import { computed } from 'vue'
 
 /**
- * Graphique en barres des inscriptions mensuelles (SVG pur,
- * sans dépendance externe).
+ * Graphique en barres (SVG pur, sans dependance externe).
  *
  * Props :
  * - data : tableau d'objets { label: string, value: number }
  * - title : titre du graphique
- *
- * Accessibilité : <svg> avec role="img", titre et étiquettes aria.
  */
 const props = defineProps({
   data: {
@@ -19,13 +16,12 @@ const props = defineProps({
   },
   title: {
     type: String,
-    default: 'Inscriptions par mois'
+    default: 'Inscriptions par evenement'
   }
 })
 
-const svgId = computed(() => `chart-${Math.random().toString(36).slice(2, 8)}`)
-
 const maxValue = computed(() => Math.max(...props.data.map((d) => d.value), 1))
+const ariaSummary = computed(() => props.data.map((d) => `${d.label} : ${d.value} inscriptions`).join(', '))
 
 const padding = { top: 12, right: 8, bottom: 32, left: 8 }
 const width = 520
@@ -38,22 +34,16 @@ const barWidth = computed(() => {
 </script>
 
 <template>
-  <figure
-    class="chart-card card"
-    :aria-label="title"
-  >
-    <figcaption class="chart-title">
-      {{ title }}
-    </figcaption>
+  <figure class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm" :aria-label="title">
+    <figcaption class="mb-4 text-base font-semibold text-slate-900">{{ title }}</figcaption>
 
     <svg
-      :id="svgId"
       :width="width"
       :height="height"
       viewBox="0 0 520 200"
       role="img"
-      :aria-label="`${title} — ${data.map(d => `${d.label}: ${d.value} inscriptions`).join(', ')}`"
-      class="chart-svg"
+      :aria-label="`${title} : ${ariaSummary}`"
+      class="block h-auto w-full"
     >
       <rect
         v-for="(d, i) in data"
@@ -62,7 +52,7 @@ const barWidth = computed(() => {
         :y="height - padding.bottom - (d.value / maxValue) * (height - padding.top - padding.bottom)"
         :width="barWidth"
         :height="(d.value / maxValue) * (height - padding.top - padding.bottom)"
-        fill="var(--color-primary)"
+        fill="#216d66"
         rx="4"
       >
         <title>{{ `${d.label} : ${d.value} inscriptions` }}</title>
@@ -75,38 +65,14 @@ const barWidth = computed(() => {
         :y="height - 10"
         text-anchor="middle"
         font-size="11"
-        fill="var(--color-text-muted)"
+        fill="#64748b"
       >
         {{ d.label }}
       </text>
     </svg>
 
-    <ul class="chart-legend sr-only">
-      <li
-        v-for="d in data"
-        :key="d.label"
-      >
-        {{ d.label }} : {{ d.value }} inscriptions
-      </li>
+    <ul class="sr-only">
+      <li v-for="d in data" :key="d.label">{{ d.label }} : {{ d.value }} inscriptions</li>
     </ul>
   </figure>
 </template>
-
-<style scoped>
-.chart-card {
-  padding: var(--space-5);
-}
-
-.chart-title {
-  font-size: var(--font-size-base);
-  font-weight: 700;
-  color: var(--color-ink);
-  margin-bottom: var(--space-4);
-}
-
-.chart-svg {
-  width: 100%;
-  height: auto;
-  display: block;
-}
-</style>

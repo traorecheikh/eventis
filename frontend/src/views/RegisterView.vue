@@ -1,262 +1,132 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { toast } from 'vue-sonner'
+import { UserPlus, CalendarCog, User } from 'lucide-vue-next'
 import { useAuthStore } from '../stores'
 import ErrorMessage from '../components/common/ErrorMessage.vue'
+import AppButton from '../components/common/AppButton.vue'
 
 /**
- * Page d'inscription (création de compte).
+ * Page d'inscription (creation de compte).
  *
- * La logique est déléguée au authStore (register). La validation
- * locale conserve la vérification de concordance des mots de passe ;
- * le reste est géré par le store (architecture View → Component → Store).
+ * Le role determine les droits du compte : "organisateur" peut
+ * creer des evenements, "participant" peut s'inscrire aux
+ * evenements (apres creation de son profil participant, voir
+ * ParticipantProfileView).
  */
 const router = useRouter()
 const authStore = useAuthStore()
 
 const form = ref({
-  firstName: '',
-  lastName: '',
   email: '',
   password: '',
-  passwordConfirm: ''
+  passwordConfirm: '',
+  role: 'participant'
 })
 
 async function handleSubmit() {
   if (form.value.password !== form.value.passwordConfirm) {
-    authStore.resetStatus()
     authStore.error = 'Les mots de passe ne correspondent pas.'
     return
   }
-
   if (!form.value.password || form.value.password.length < 8) {
-    authStore.resetStatus()
-    authStore.error = 'Le mot de passe doit contenir au moins 8 caractères.'
+    authStore.error = 'Le mot de passe doit contenir au moins 8 caracteres.'
     return
   }
 
-  // Le nom complet est assemblé ici afin que le store transmette
-  // exactement les champs attendus par l'API
-  // (POST /api/auth/register : { name, email, password }).
-  const name = [
-    form.value.firstName.trim(),
-    form.value.lastName.trim()
-  ]
-    .filter(Boolean)
-    .join(' ')
-    .trim()
-
-  await authStore.register({
-    name,
-    email: form.value.email.trim(),
-    password: form.value.password
-  })
-
-  if (authStore.isAuthenticated) {
+  try {
+    await authStore.register({
+      email: form.value.email.trim(),
+      password: form.value.password,
+      role: form.value.role
+    })
+    toast.success('Compte cree avec succes', { description: 'Bienvenue sur EventHub.' })
     router.push({ name: 'dashboard' })
+  } catch {
+    // L'erreur est deja exposee par authStore.error.
   }
 }
-
 </script>
 
 <template>
-  <div class="auth-page">
-    <div class="auth-card">
-      <h1>Créer un compte</h1>
-      <p class="note">
-        Rejoignez EventHub pour gérer vos événements.
-      </p>
+  <div class="flex min-h-[60vh] items-center justify-center">
+    <div v-motion :initial="{ opacity: 0, y: 12 }" :enter="{ opacity: 1, y: 0 }" class="w-full max-w-lg rounded-xl border border-slate-200 bg-white p-8 shadow-sm">
+      <h1 class="text-2xl font-semibold text-slate-900">Creer un compte</h1>
+      <p class="mt-1 text-slate-500">Rejoignez EventHub pour gerer ou suivre des evenements.</p>
 
-      <form
-        class="auth-form"
-        @submit.prevent="handleSubmit"
-      >
-        <div class="form-row">
-          <div class="form-group">
-            <label for="firstName">Prénom</label>
-            <input
-              id="firstName"
-              v-model="form.firstName"
-              type="text"
-              placeholder="Marie"
-              required
+      <form class="mt-6 flex flex-col gap-4" @submit.prevent="handleSubmit">
+        <fieldset class="flex flex-col gap-2">
+          <legend class="text-sm font-semibold text-slate-700">Vous etes</legend>
+          <div class="grid grid-cols-2 gap-3">
+            <label
+              class="flex cursor-pointer flex-col items-center gap-2 rounded-lg border px-4 py-3 text-sm transition-colors"
+              :class="form.role === 'participant' ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-slate-300 text-slate-600 hover:bg-slate-50'"
             >
-          </div>
-          <div class="form-group">
-            <label for="lastName">Nom</label>
-            <input
-              id="lastName"
-              v-model="form.lastName"
-              type="text"
-              placeholder="Dupont"
-              required
+              <input v-model="form.role" type="radio" value="participant" class="sr-only">
+              <User class="h-5 w-5" aria-hidden="true" />
+              Participant
+            </label>
+            <label
+              class="flex cursor-pointer flex-col items-center gap-2 rounded-lg border px-4 py-3 text-sm transition-colors"
+              :class="form.role === 'organisateur' ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-slate-300 text-slate-600 hover:bg-slate-50'"
             >
+              <input v-model="form.role" type="radio" value="organisateur" class="sr-only">
+              <CalendarCog class="h-5 w-5" aria-hidden="true" />
+              Organisateur
+            </label>
           </div>
-        </div>
+        </fieldset>
 
-        <div class="form-group">
-          <label for="email">Adresse e-mail</label>
+        <div class="flex flex-col gap-1.5">
+          <label for="email" class="text-sm font-semibold text-slate-700">Adresse e-mail</label>
           <input
             id="email"
             v-model="form.email"
             type="email"
             placeholder="vous@exemple.com"
             required
+            class="rounded-md border border-slate-300 px-3.5 py-2.5 text-base outline-none transition-colors focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
           >
         </div>
 
-        <div class="form-row">
-          <div class="form-group">
-            <label for="password">Mot de passe</label>
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div class="flex flex-col gap-1.5">
+            <label for="password" class="text-sm font-semibold text-slate-700">Mot de passe</label>
             <input
               id="password"
               v-model="form.password"
               type="password"
-              placeholder="••••••••"
+              placeholder="8 caracteres minimum"
               required
+              class="rounded-md border border-slate-300 px-3.5 py-2.5 text-base outline-none transition-colors focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
             >
           </div>
-          <div class="form-group">
-            <label for="passwordConfirm">Confirmer</label>
+          <div class="flex flex-col gap-1.5">
+            <label for="passwordConfirm" class="text-sm font-semibold text-slate-700">Confirmer</label>
             <input
               id="passwordConfirm"
               v-model="form.passwordConfirm"
               type="password"
-              placeholder="••••••••"
+              placeholder="********"
               required
+              class="rounded-md border border-slate-300 px-3.5 py-2.5 text-base outline-none transition-colors focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
             >
           </div>
         </div>
 
-        <ErrorMessage
-          v-if="authStore.error"
-          :message="authStore.error"
-        />
+        <ErrorMessage v-if="authStore.error" :message="authStore.error" />
 
-        <button
-          type="submit"
-          class="btn btn-primary"
-          :disabled="authStore.loading"
-        >
-          {{ authStore.loading ? 'Création en cours…' : 'Créer mon compte' }}
-        </button>
+        <AppButton type="submit" size="lg" :loading="authStore.loading">
+          <UserPlus class="h-4 w-4" aria-hidden="true" />
+          Creer mon compte
+        </AppButton>
       </form>
 
-      <p class="auth-switch">
-        Déjà un compte ?
-        <RouterLink to="/login">
-          Se connecter
-        </RouterLink>
+      <p class="mt-6 text-center text-sm text-slate-600">
+        Deja un compte ?
+        <RouterLink to="/login" class="font-medium text-brand-600 hover:text-brand-700">Se connecter</RouterLink>
       </p>
     </div>
   </div>
 </template>
-
-<style scoped>
-.auth-page {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 60vh;
-}
-
-.auth-card {
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 0.75rem;
-  padding: 2.5rem;
-  width: 100%;
-  max-width: 560px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
-}
-
-h1 {
-  font-size: 1.75rem;
-  color: #1e293b;
-  margin-bottom: 0.5rem;
-}
-
-.note {
-  color: #64748b;
-  margin-bottom: 1.5rem;
-}
-
-.auth-form {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.form-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1rem;
-}
-
-@media (max-width: 560px) {
-  .form-row {
-    grid-template-columns: 1fr;
-  }
-}
-
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.375rem;
-}
-
-label {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: #334155;
-}
-
-input {
-  padding: 0.625rem 0.875rem;
-  border: 1px solid #cbd5e1;
-  border-radius: 0.375rem;
-  font-size: 1rem;
-  outline: none;
-  transition: border-color 0.2s;
-}
-
-input:focus {
-  border-color: #2563eb;
-}
-
-.form-error {
-  color: #dc2626;
-  font-size: 0.875rem;
-  background: #fef2f2;
-  border: 1px solid #fecaca;
-  padding: 0.625rem;
-  border-radius: 0.375rem;
-}
-
-.btn {
-  display: inline-block;
-  padding: 0.75rem 1.5rem;
-  border-radius: 0.375rem;
-  border: none;
-  font-weight: 600;
-  font-size: 1rem;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-
-.btn-primary {
-  background: #2563eb;
-  color: #fff;
-}
-
-.btn-primary:hover {
-  background: #1d4ed8;
-}
-
-.auth-switch {
-  margin-top: 1.5rem;
-  text-align: center;
-  font-size: 0.875rem;
-  color: #475569;
-}
-</style>

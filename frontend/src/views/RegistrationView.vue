@@ -1,8 +1,8 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { onMounted } from 'vue'
-import RegistrationForm from '../components/registrations/RegistrationForm.vue'
+import { toast } from 'vue-sonner'
+import { ArrowLeft, CalendarDays, MapPin, Users, CircleCheck } from 'lucide-vue-next'
 import ErrorMessage from '../components/common/ErrorMessage.vue'
 import LoadingSpinner from '../components/common/LoadingSpinner.vue'
 import AppModal from '../components/common/AppModal.vue'
@@ -10,11 +10,13 @@ import AppButton from '../components/common/AppButton.vue'
 import { useEventStore, useRegistrationStore, useAuthStore } from '../stores'
 
 /**
- * Formulaire d'inscription à un événement.
+ * Confirmation d'inscription a un evenement.
  *
- * La logique est déléguée aux stores (eventStore pour récupérer
- * l'événement, registrationStore pour créer l'inscription).
- * Le service API Axios sera injecté à la phase 5.
+ * Le backend lie une inscription a un participant existant
+ * (eventId + participantId), il n'accepte pas de details de
+ * participant en ligne : l'utilisateur doit etre connecte et avoir
+ * un profil participant (authStore.participantId) avant de pouvoir
+ * confirmer.
  */
 const route = useRoute()
 const router = useRouter()
@@ -24,170 +26,105 @@ const authStore = useAuthStore()
 
 const showModal = ref(false)
 
-onMounted(async () => {
-  await eventStore.fetchEventById(route.params.eventId)
+onMounted(() => {
+  eventStore.fetchEventById(route.params.eventId)
 })
 
-/**
- * Pré-remplissage du formulaire lorsque l'utilisateur est connecté.
- */
-const prefilledForm = computed(() => {
-  const user = authStore.user
-  if (!user) return {}
-  return {
-    firstName: user.firstName ?? splitName(user)?.firstName ?? '',
-    lastName: user.lastName ?? splitName(user)?.lastName ?? '',
-    email: user.email ?? ''
-  }
-})
-
-/**
- * Découpe un nom complet (ex. "Marie Dupont") en prénom / nom.
- */
-function splitName(user) {
-  const full = user.fullName || user.name || ''
-  const parts = full.trim().split(/\s+/)
-  if (parts.length === 0) return { firstName: '', lastName: '' }
-  return {
-    firstName: parts[0],
-    lastName: parts.slice(1).join(' ')
+async function handleConfirm() {
+  try {
+    await registrationStore.register(route.params.eventId, authStore.participantId)
+    await eventStore.refreshAvailability(route.params.eventId)
+    showModal.value = true
+  } catch {
+    toast.error(registrationStore.error)
   }
 }
 
-async function handleSubmit(data) {
-  if (!eventStore.currentEvent) {
-    return
-  }
-
-  // Normalisation des champs du formulaire vers le format attendu
-  // par le store et par le backend
-  // (POST /api/registrations : { eventId, participant: { fullName,
-  // email, phone, dietaryRequirements } }).
-  const current = eventStore.currentEvent
-  const payload = {
-    eventId: Number(current.id ?? current.eventId),
-    eventTitle: current.title ?? current.name ?? '',
-    eventDate: current.date ?? current.eventDate ?? '',
-    fullName: [data.firstName, data.lastName].filter(Boolean).join(' ').trim(),
-    email: data.email,
-    phone: data.phone ?? '',
-    dietary: data.dietaryRequirements ?? '',
-    comments: data.comments ?? ''
-  }
-
-  await registrationStore.createRegistration(payload)
-
-  if (registrationStore.error) {
-    return
-  }
-
-  showModal.value = true
-
-  // Recharger la liste « Mes inscriptions » après la fermeture
-  // de la modale de confirmation (fetchRegistrations écrase la
-  // liste locale ; on attend que l'utilisateur ait vu le message).
-  setTimeout(() => {
-    registrationStore.fetchRegistrations()
-  }, 900)
-}
-
-function confirmRegistration() {
+function goToMyRegistrations() {
   showModal.value = false
-  setTimeout(() => router.push({ name: 'my-registrations' }), 800)
+  router.push({ name: 'my-registrations' })
 }
 </script>
 
 <template>
-  <div class="registration">
+  <div class="mx-auto flex max-w-2xl flex-col gap-4">
+    <RouterLink :to="`/events/${route.params.eventId}`" class="inline-flex w-fit items-center gap-1.5 text-sm text-slate-500 hover:text-brand-600">
+      <ArrowLeft class="h-4 w-4" aria-hidden="true" />
+      Retour a l'evenement
+    </RouterLink>
+
     <LoadingSpinner v-if="eventStore.loading" />
+    <ErrorMessage v-else-if="eventStore.error" :message="eventStore.error" />
 
-    <ErrorMessage
-      v-if="eventStore.error"
-      :message="eventStore.error"
-    />
+    <template v-else-if="eventStore.currentEvent">
+      <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+        <h1 class="text-xl font-semibold text-slate-900">S'inscrire a l'evenement</h1>
+        <p class="mt-1 text-lg font-medium text-brand-700">{{ eventStore.currentEvent.title }}</p>
+        <ul class="mt-3 flex flex-col gap-1.5 text-sm text-slate-600">
+          <li class="flex items-center gap-2">
+            <CalendarDays class="h-4 w-4 text-brand-600" aria-hidden="true" /> {{ eventStore.currentEvent.date }}
+          </li>
+          <li class="flex items-center gap-2">
+            <MapPin class="h-4 w-4 text-brand-600" aria-hidden="true" /> {{ eventStore.currentEvent.location }}
+          </li>
+          <li v-if="eventStore.currentAvailability" class="flex items-center gap-2">
+            <Users class="h-4 w-4 text-brand-600" aria-hidden="true" />
+            {{ eventStore.currentAvailability.remainingSeats }} place(s) restante(s) sur {{ eventStore.currentAvailability.maxCapacity }}
+          </li>
+        </ul>
 
-    <ErrorMessage
-      v-if="registrationStore.error"
-      :message="registrationStore.error"
-    />
+        <div class="mt-6 border-t border-slate-200 pt-5">
+          <template v-if="!authStore.isAuthenticated">
+            <p class="text-sm text-slate-600">Connectez-vous pour vous inscrire a cet evenement.</p>
+            <RouterLink
+              :to="{ name: 'login', query: { redirect: route.fullPath } }"
+              class="mt-3 inline-flex h-10 items-center rounded-lg bg-brand-600 px-4 text-sm font-medium text-white hover:bg-brand-700"
+            >
+              Se connecter
+            </RouterLink>
+          </template>
 
-    <template v-if="eventStore.currentEvent">
-      <p class="breadcrumb">
-        <RouterLink :to="`/events/${eventStore.currentEvent.id}`">
-          ← Retour à l'événement
-        </RouterLink>
-      </p>
+          <template v-else-if="!authStore.participantId">
+            <p class="text-sm text-slate-600">
+              Votre compte n'a pas encore de profil participant. Creez-le pour pouvoir vous inscrire.
+            </p>
+            <RouterLink
+              :to="{ name: 'participant-profile', params: { id: 'nouveau' } }"
+              class="mt-3 inline-flex h-10 items-center rounded-lg bg-brand-600 px-4 text-sm font-medium text-white hover:bg-brand-700"
+            >
+              Creer mon profil participant
+            </RouterLink>
+          </template>
 
-      <p
-        v-if="!authStore.isAuthenticated"
-        class="note"
-      >
-        Vous pouvez vous connecter pour préremplir vos informations
-        et garder un suivi de vos inscriptions.
-      </p>
-
-      <RegistrationForm
-        :event-title="eventStore.currentEvent.title"
-        :loading="registrationStore.loading"
-        :initial="prefilledForm"
-        @submit="handleSubmit"
-      />
+          <template v-else>
+            <p class="text-sm text-slate-600">
+              Inscription au nom de <strong>{{ authStore.participantProfile.name }}</strong>
+              ({{ authStore.participantProfile.email }}).
+            </p>
+            <ErrorMessage v-if="registrationStore.error" class="mt-3" :message="registrationStore.error" />
+            <AppButton class="mt-3" size="lg" :loading="registrationStore.loading" :disabled="eventStore.currentAvailability?.isFull" @click="handleConfirm">
+              {{ eventStore.currentAvailability?.isFull ? 'Evenement complet' : "Confirmer l'inscription" }}
+            </AppButton>
+          </template>
+        </div>
+      </div>
     </template>
 
-    <div
-      v-else-if="!eventStore.loading && !eventStore.error"
-      class="not-found-inline card"
-    >
-      <p>Événement introuvable.</p>
+    <div v-else class="rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center text-slate-500">
+      Evenement introuvable.
     </div>
 
-    <AppModal
-      :open="showModal"
-      title="Inscription confirmée"
-      @close="showModal = false"
-    >
-      <p>
-        Votre inscription à « <strong>{{ eventStore.currentEvent?.title }}</strong> » a bien été
-        enregistrée. Vous serez redirigé vers vos inscriptions.
-      </p>
+    <AppModal :open="showModal" title="Inscription confirmee" @close="showModal = false">
+      <div class="flex items-start gap-3">
+        <CircleCheck class="h-6 w-6 shrink-0 text-brand-600" aria-hidden="true" />
+        <p class="text-slate-700">
+          Votre inscription a <strong>{{ eventStore.currentEvent?.title }}</strong> a bien ete enregistree.
+        </p>
+      </div>
       <template #footer>
-        <AppButton
-          variant="secondary"
-          @click="showModal = false"
-        >
-          Fermer
-        </AppButton>
-        <AppButton @click="confirmRegistration">
-          Voir mes inscriptions
-        </AppButton>
+        <AppButton variant="secondary" @click="showModal = false">Fermer</AppButton>
+        <AppButton @click="goToMyRegistrations">Voir mes inscriptions</AppButton>
       </template>
     </AppModal>
   </div>
 </template>
-
-<style scoped>
-.registration {
-  max-width: 720px;
-  margin: 0 auto;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-}
-
-.breadcrumb {
-  color: var(--color-text-secondary);
-}
-
-.note {
-  font-size: var(--font-size-sm);
-  font-style: italic;
-  color: var(--color-text-muted);
-}
-
-.not-found-inline {
-  padding: var(--space-8) var(--space-6);
-  text-align: center;
-  color: var(--color-text-secondary);
-  font-style: italic;
-}
-</style>
