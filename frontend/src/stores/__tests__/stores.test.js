@@ -6,61 +6,24 @@ import { useAuthStore } from '../authStore'
 import { useParticipantStore } from '../participantStore'
 
 /**
- * Tests des stores Pinia.
- *
- * Les modules de service sont mockés directement (vi.mock sur chaque
- * service) afin que les stores appellent des fonctions simulées.
- * L'état loading / error / success et les mutations de liste sont
- * vérifiés. Les codes HTTP 400/401/403/404/409/422/500 sont simulés
- * via des erreurs Error munies de la propriété `status`.
+ * Tests des stores Pinia, alignes sur les contrats reels des 4
+ * microservices. Aucune donnee de repli/mock : une erreur API reste
+ * une erreur observable dans store.error.
  */
-
-const mockEvent = {
-  id: 1,
-  name: 'Conférence IA',
-  eventDate: '2026-09-15',
-  venue: 'Dakar',
-  maxCapacity: 100,
-  currentParticipants: 20,
-  category: 'Technologie'
-}
-
-const mockRegistration = {
-  id: 101,
-  eventId: 1,
-  eventTitle: 'Conférence IA',
-  eventDate: '2026-09-15',
-  participant: { fullName: 'Awa Diop', email: 'awa@b.c' },
-  status: 'confirmed',
-  registeredAt: 'aujourd\'hui'
-}
 
 vi.mock('../../services/eventService', () => ({
   getEvents: vi.fn(),
   getEventById: vi.fn(),
-  createEvent: vi.fn(),
-  updateEvent: vi.fn(),
-  deleteEvent: vi.fn(),
-  mapApiResponse: (event) => ({
-    id: event?.id,
-    title: event?.name ?? '',
-    date: event?.eventDate ?? '',
-    location: event?.venue ?? '',
-    category: event?.category ?? 'Général',
-    maxParticipants: event?.maxCapacity ?? 0,
-    currentParticipants: event?.currentParticipants ?? 0,
-    remainingSeats: (event?.maxCapacity ?? 0) - (event?.currentParticipants ?? 0),
-    organizer: event?.organizer ?? '',
-    status: event?.status ?? 'published',
-    time: event?.time ?? '',
-    description: event?.description ?? ''
-  })
+  getEventAvailability: vi.fn(),
+  createEvent: vi.fn()
 }))
 
 vi.mock('../../services/registrationService', () => ({
-  getRegistrations: vi.fn(),
   createRegistration: vi.fn(),
-  cancelRegistration: vi.fn()
+  cancelRegistration: vi.fn(),
+  getEventRegistrations: vi.fn(),
+  getParticipantRegistrations: vi.fn(),
+  getGlobalStats: vi.fn()
 }))
 
 vi.mock('../../services/authService', () => ({
@@ -72,39 +35,18 @@ vi.mock('../../services/authService', () => ({
 }))
 
 vi.mock('../../services/participantService', () => ({
+  createParticipant: vi.fn(),
   getParticipants: vi.fn(),
-  getParticipantById: vi.fn()
+  searchParticipants: vi.fn(),
+  getParticipantById: vi.fn(),
+  updateParticipant: vi.fn(),
+  deleteParticipant: vi.fn()
 }))
 
-vi.mock('../../assets/images/mockData.js', () => ({
-  MOCK_EVENTS: [
-    {
-      id: 99,
-      title: 'Événement local',
-      date: '1er janvier 2027',
-      location: 'Thiès',
-      category: 'Atelier',
-      maxParticipants: 50,
-      currentParticipants: 10,
-      remainingSeats: 40,
-      status: 'published'
-    }
-  ],
-  MOCK_REGISTRATIONS: [
-    {
-      id: 901,
-      eventId: 99,
-      eventTitle: 'Événement local',
-      eventDate: '2027-01-01',
-      fullName: 'Moussa Ba',
-      email: 'moussa@b.c',
-      status: 'confirmed'
-    }
-  ],
-  MOCK_PARTICIPANTS: [
-    { id: 10, firstName: 'Fatou', lastName: 'Ndiaye', email: 'fatou@b.c', role: 'Participant' }
-  ]
-}))
+import { getEvents, getEventById, getEventAvailability, createEvent } from '../../services/eventService'
+import { createRegistration, cancelRegistration, getEventRegistrations, getParticipantRegistrations, getGlobalStats } from '../../services/registrationService'
+import { login, register, fetchCurrentUser } from '../../services/authService'
+import { createParticipant, getParticipants, searchParticipants, getParticipantById, updateParticipant, deleteParticipant } from '../../services/participantService'
 
 beforeEach(() => {
   setActivePinia(createPinia())
@@ -112,7 +54,6 @@ beforeEach(() => {
   window.localStorage.clear()
 })
 
-/** Crée un JWT valide (exp dans le futur) pour les tests d'hydratation. */
 function makeValidJwt(payload) {
   const b64 = (obj) =>
     btoa(JSON.stringify(obj))
@@ -122,399 +63,252 @@ function makeValidJwt(payload) {
   return `${b64({ alg: 'HS256', typ: 'JWT' })}.${b64({ ...payload, exp: Math.floor(Date.now() / 1000) + 3600 })}.${b64('s')}`
 }
 
-import {
-  getEvents,
-  createEvent,
-  updateEvent,
-  deleteEvent
-} from '../../services/eventService'
-import {
-  getRegistrations,
-  createRegistration,
-  cancelRegistration
-} from '../../services/registrationService'
-import { login, register, fetchCurrentUser } from '../../services/authService'
-import { getParticipants, getParticipantById } from '../../services/participantService'
+const mockEvent = { id: 1, title: 'Conference IA', date: '2026-09-15T10:00:00.000Z', location: 'Dakar', maxCapacity: 100 }
 
 describe('eventStore', () => {
-  it('fetchEvents charge la liste, active loading puis success', async () => {
-    getEvents.mockResolvedValueOnce([mockEvent])
+  it('fetchEvents charge la page et la pagination', async () => {
+    getEvents.mockResolvedValueOnce({ data: [mockEvent], pagination: { page: 1, limit: 20, total: 1, totalPages: 1 } })
     const store = useEventStore()
     const promise = store.fetchEvents()
     expect(store.loading).toBe(true)
     await promise
     expect(store.loading).toBe(false)
     expect(store.events).toHaveLength(1)
-    expect(store.events[0].title).toBe('Conférence IA')
-    expect(store.success).toContain('chargé(s)')
+    expect(store.pagination.total).toBe(1)
   })
 
-  it('fetchEvents bascule en repli local si l\'API échoue (réseau)', async () => {
-    getEvents.mockRejectedValueOnce(new Error('Network Error'))
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+  it('fetchEvents propage l erreur sans repli local', async () => {
+    getEvents.mockRejectedValueOnce(new Error('SERVICE_UNAVAILABLE'))
     const store = useEventStore()
     await store.fetchEvents()
-    expect(store.events.length).toBeGreaterThan(0)
-    expect(store.events[0].title).toBe('Événement local')
-    // Le store charge le catalogue mocké en repli sans bloquer l'interface.
-    expect(store.success).toContain('chargé(s)')
-    expect(warnSpy).toHaveBeenCalledOnce()
-    warnSpy.mockRestore()
+    expect(store.events).toHaveLength(0)
+    expect(store.error).toBe('SERVICE_UNAVAILABLE')
   })
 
-  it('fetchEvents applique la recherche textuelle (titre ou lieu)', async () => {
-    getEvents.mockResolvedValueOnce([
-      mockEvent,
-      { ...mockEvent, id: 2, name: 'Atelier UX', venue: 'Paris', currentParticipants: 0 }
-    ])
+  it('fetchEvents applique une recherche texte locale sur la page chargee', async () => {
+    getEvents.mockResolvedValueOnce({
+      data: [mockEvent, { ...mockEvent, id: 2, title: 'Atelier UX', location: 'Paris' }],
+      pagination: {}
+    })
     const store = useEventStore()
     await store.fetchEvents({ search: 'Paris' })
     expect(store.events).toHaveLength(1)
     expect(store.events[0].title).toBe('Atelier UX')
   })
 
-  it('fetchEvents filtre par catégorie et événements complets', async () => {
-    getEvents.mockResolvedValueOnce([mockEvent])
+  it('addEvent ajoute l evenement cree en tete de liste', async () => {
+    createEvent.mockResolvedValueOnce({ ...mockEvent, id: 10, title: 'Nouveau' })
     const store = useEventStore()
-    await store.fetchEvents({ category: 'Technologie' })
-    expect(store.events).toHaveLength(1)
-    await store.fetchEvents({ category: 'Design' })
-    expect(store.events).toHaveLength(0)
-    await store.fetchEvents({ onlyFull: true })
-    expect(store.events).toHaveLength(0) // remainingSeats = 80
-  })
-
-  it('addEvent ajoute l\'événement à la liste (payload déjà au format backend)', async () => {
-    createEvent.mockResolvedValueOnce({
-      id: 10,
-      name: 'Nouveau',
-      eventDate: '2026-12-01',
-      venue: 'Ziguinchor',
-      maxCapacity: 30,
-      currentParticipants: 0
-    })
-    const store = useEventStore()
-    await store.addEvent({
-      name: 'Nouveau',
-      eventDate: '2026-12-01',
-      venue: 'Ziguinchor',
-      maxCapacity: 30
-    })
+    await store.addEvent({ title: 'Nouveau', date: mockEvent.date, location: 'Ziguinchor', maxCapacity: 30 })
     expect(store.events[0].title).toBe('Nouveau')
-    expect(store.events[0].remainingSeats).toBe(30)
-    expect(store.success).toBe('Événement créé avec succès.')
-    expect(createEvent).toHaveBeenCalledWith({
-      name: 'Nouveau',
-      eventDate: '2026-12-01',
-      venue: 'Ziguinchor',
-      maxCapacity: 30
-    })
+    expect(store.success).toBe('Evenement cree avec succes.')
   })
 
-  it('addEvent capture l\'erreur de l\'API (ex. 422, 409, 500)', async () => {
-    const err = Object.assign(new Error('Nom déjà utilisé (409)'), { status: 409 })
-    createEvent.mockRejectedValueOnce(err)
+  it('addEvent capture l erreur backend et la propage', async () => {
+    createEvent.mockRejectedValueOnce(new Error('title doit etre une chaine de 3 a 200 caracteres'))
     const store = useEventStore()
-    await store.addEvent({ name: 'Doublon' })
-    expect(store.error).toContain('409')
-    expect(store.loading).toBe(false)
+    await expect(store.addEvent({ title: 'IA' })).rejects.toThrow()
+    expect(store.error).toContain('title doit etre')
     expect(store.events).toHaveLength(0)
   })
 
-  it('editEvent met à jour l\'élément de la liste et currentEvent', async () => {
-    updateEvent.mockResolvedValueOnce({
-      ...mockEvent,
-      name: 'Conférence IA — édition',
-      maxCapacity: 150
-    })
-    const store = useEventStore()
-    store.events = [{ ...mockEvent, id: 1, title: 'Conférence IA' }]
-    store.currentEvent = { ...mockEvent, id: 1, title: 'Conférence IA' }
-    await store.editEvent(1, { name: 'Conférence IA — édition', maxCapacity: 150 })
-    expect(store.events[0].title).toBe('Conférence IA — édition')
-    expect(store.events[0].maxParticipants).toBe(150)
-    expect(store.currentEvent.title).toBe('Conférence IA — édition')
-    expect(store.success).toBe('Événement mis à jour avec succès.')
-  })
-
-  it('removeEvent retire l\'événement de la liste et vide currentEvent', async () => {
-    deleteEvent.mockResolvedValueOnce({})
-    const store = useEventStore()
-    store.events = [{ ...mockEvent, id: 4, title: 'À supprimer' }]
-    store.currentEvent = { id: 4 }
-    await store.removeEvent(4)
-    expect(store.events).toHaveLength(0)
-    expect(store.currentEvent).toBeNull()
-    expect(store.success).toBe('Événement supprimé avec succès.')
-  })
-
-  it('removeEvent capture l\'erreur (403, 404)', async () => {
-    deleteEvent.mockRejectedValueOnce(
-      Object.assign(new Error('Accès refusé (403)'), { status: 403 })
-    )
-    const store = useEventStore()
-    store.events = [{ ...mockEvent, id: 4 }]
-    await store.removeEvent(4)
-    expect(store.events).toHaveLength(1) // la liste n'est pas modifiée
-    expect(store.error).toContain('403')
-  })
-
-  it('fetchEventById charge l\'événement courant ou signale l\'absence', async () => {
-    getEvents.mockResolvedValueOnce([mockEvent])
+  it('fetchEventById charge l evenement et sa disponibilite en parallele', async () => {
+    getEventById.mockResolvedValueOnce(mockEvent)
+    getEventAvailability.mockResolvedValueOnce({ eventId: 1, maxCapacity: 100, registeredCount: 10, remainingSeats: 90, isFull: false })
     const store = useEventStore()
     await store.fetchEventById(1)
-    expect(store.currentEvent).not.toBeNull()
     expect(store.currentEvent.id).toBe(1)
-    await store.fetchEventById(999)
-    expect(store.currentEvent).toBeNull()
-    expect(store.error).toContain('999')
+    expect(store.currentAvailability.remainingSeats).toBe(90)
   })
 
-  it('les getters reflètent l\'état de la liste', async () => {
-    getEvents.mockResolvedValueOnce([
-      mockEvent,
-      { ...mockEvent, id: 2, currentParticipants: 100 },
-      { ...mockEvent, id: 3, category: 'Design' }
-    ])
+  it('fetchEventById signale une erreur si l evenement est introuvable', async () => {
+    getEventById.mockRejectedValueOnce(new Error('Evenement introuvable'))
+    getEventAvailability.mockResolvedValueOnce(null)
     const store = useEventStore()
-    await store.fetchEvents()
-    expect(store.eventCount).toBe(3)
-    expect(store.categories).toEqual(expect.arrayContaining(['Technologie', 'Design']))
-    expect(store.activeEvents.length).toBe(2) // un événement est plein
+    await store.fetchEventById(999)
+    expect(store.currentEvent).toBeNull()
+    expect(store.error).toContain('introuvable')
   })
 })
 
 describe('registrationStore', () => {
-  it('fetchRegistrations charge depuis l\'API avec statuts normalisés', async () => {
-    getRegistrations.mockResolvedValueOnce([mockRegistration])
+  it('fetchMyRegistrations charge les inscriptions enrichies', async () => {
+    getParticipantRegistrations.mockResolvedValueOnce({
+      data: [{ id: 1, eventId: 1, participantId: 7, status: 'confirmee', event: { title: 'Conference IA' } }],
+      pagination: { page: 1, limit: 20, total: 1, totalPages: 1 }
+    })
     const store = useRegistrationStore()
-    await store.fetchRegistrations()
+    await store.fetchMyRegistrations(7)
     expect(store.registrations).toHaveLength(1)
-    expect(store.registrations[0].status).toBe('Confirmée')
-    expect(store.registrations[0].firstName).toBe('Awa Diop')
-    expect(store.registrations[0].monthLabel).toBe('septembre 2026')
     expect(store.confirmedRegistrations).toHaveLength(1)
   })
 
-  it('fetchRegistrations bascule en repli local (mock + local)', async () => {
-    getRegistrations.mockRejectedValueOnce(new Error('Network'))
+  it('register cree l inscription et l ajoute en tete de liste', async () => {
+    createRegistration.mockResolvedValueOnce({ id: 1, eventId: 1, participantId: 7, status: 'confirmee' })
     const store = useRegistrationStore()
-    await store.fetchRegistrations()
-    expect(store.registrations.length).toBeGreaterThan(0)
-    expect(store.success).toContain('données locales')
+    await store.register(1, 7)
+    expect(createRegistration).toHaveBeenCalledWith({ eventId: 1, participantId: 7 })
+    expect(store.registrations[0].status).toBe('confirmee')
+    expect(store.success).toBe('Inscription enregistree avec succes.')
   })
 
-  it('createRegistration valide eventId, nom et e-mail avant envoi', async () => {
+  it('register traduit EVENT_FULL en message lisible et ne masque pas l erreur', async () => {
+    const err = new Error('Request failed')
+    err.cause = { response: { data: { error: 'EVENT_FULL' } } }
+    createRegistration.mockRejectedValueOnce(err)
     const store = useRegistrationStore()
-    await store.createRegistration({ eventId: null, fullName: 'Awa', email: 'a@b.c' })
-    expect(store.error).toContain('événement est requis')
-
-    await store.createRegistration({ eventId: 1, fullName: '', email: 'a@b.c' })
-    expect(store.error).toContain('nom et le prénom')
-
-    await store.createRegistration({ eventId: 1, fullName: 'Awa Diop', email: 'invalide' })
-    expect(store.error).toContain('e-mail est invalide')
-
-    expect(createRegistration).not.toHaveBeenCalled()
-  })
-
-  it('createRegistration envoie le payload exact eventId + participant', async () => {
-    createRegistration.mockResolvedValueOnce({
-      id: 200,
-      eventTitle: 'Conférence IA'
-    })
-    const store = useRegistrationStore()
-    await store.createRegistration({
-      eventId: 3,
-      fullName: 'Awa Diop',
-      email: 'awa@b.c',
-      phone: '+221770000000',
-      dietary: 'Végétarien',
-      comments: 'Test',
-      eventTitle: 'Conférence IA',
-      eventDate: '2026-09-15'
-    })
-    expect(createRegistration).toHaveBeenCalledWith({
-      eventId: 3,
-      participant: {
-        fullName: 'Awa Diop',
-        email: 'awa@b.c',
-        phone: '+221770000000',
-        dietaryRequirements: 'Végétarien'
-      }
-    })
-    expect(store.registrations[0].status).toBe('Confirmée')
-    expect(store.success).toBe('Inscription enregistrée avec succès.')
-  })
-
-  it('createRegistration conserve l\'inscription en local en mode dégradé (erreur 500)', async () => {
-    createRegistration.mockRejectedValueOnce(new Error('500'))
-    const store = useRegistrationStore()
-    await store.createRegistration({
-      eventId: 3,
-      fullName: 'Awa Diop',
-      email: 'awa@b.c',
-      eventTitle: 'Conférence IA'
-    })
-    // Comportement observable : l'erreur 500 est capturée, le loading
-    // retombe et la liste reste intacte (aucun effet de bord). Le
-    // registre local interne (non exposé par le setup store Pinia)
-    // conserve l'inscription pour le prochain chargement.
-    expect(store.error).toBe('500')
-    expect(store.loading).toBe(false)
+    await expect(store.register(1, 7)).rejects.toThrow()
+    expect(store.error).toBe('Cet evenement est complet.')
     expect(store.registrations).toHaveLength(0)
-    const localState = store.$state.localRegistrations || []
-    expect(localState.length).toBeGreaterThan(0)
-    expect(localState[0].eventId).toBe(3)
-    expect(localState[0].firstName).toBe('Awa')
-    expect(localState[0].lastName).toBe('Diop')
   })
 
-  it('cancelRegistration annule et marque le statut « Annulée »', async () => {
-    getRegistrations.mockResolvedValueOnce([mockRegistration])
-    cancelRegistration.mockResolvedValueOnce()
+  it('cancelRegistration met a jour la ligne annulee', async () => {
+    getParticipantRegistrations.mockResolvedValueOnce({ data: [{ id: 1, eventId: 1, status: 'confirmee' }], pagination: {} })
+    cancelRegistration.mockResolvedValueOnce({ id: 1, eventId: 1, status: 'annulee' })
     const store = useRegistrationStore()
-    await store.fetchRegistrations()
-    await store.cancelRegistration(101)
-    expect(store.registrations[0].status).toBe('Annulée')
-    expect(store.success).toBe('Inscription annulée.')
+    await store.fetchMyRegistrations(7)
+    await store.cancelRegistration(1)
+    expect(store.registrations[0].status).toBe('annulee')
+    expect(store.success).toBe('Inscription annulee.')
   })
 
-  it('cancelRegistration échoue si l\'inscription est introuvable', async () => {
-    cancelRegistration.mockResolvedValueOnce()
+  it('fetchGlobalStats charge les statistiques globales', async () => {
+    getGlobalStats.mockResolvedValueOnce({ totalRegistrations: 10, totalConfirmed: 8, totalCancelled: 2, byEvent: [{ eventId: 1, confirmedCount: 8 }] })
     const store = useRegistrationStore()
-    await store.cancelRegistration(999)
-    expect(store.error).toBe('Inscription introuvable.')
-    expect(cancelRegistration).not.toHaveBeenCalled()
+    await store.fetchGlobalStats()
+    expect(store.globalStats.totalConfirmed).toBe(8)
   })
 
-  it('cancelRegistration fonctionne en local même si l\'API échoue (401/500)', async () => {
-    getRegistrations.mockResolvedValueOnce([mockRegistration])
-    cancelRegistration.mockRejectedValueOnce(
-      Object.assign(new Error('401'), { status: 401 })
-    )
+  it('fetchEventRegistrations charge la liste des inscrits', async () => {
+    getEventRegistrations.mockResolvedValueOnce({ data: [{ id: 1, eventId: 1, status: 'confirmee' }], pagination: {} })
     const store = useRegistrationStore()
-    await store.fetchRegistrations()
-    await store.cancelRegistration(101)
-    // L'annulation se poursuit en local.
-    expect(store.registrations[0].status).toBe('Annulée')
-    expect(store.success).toBe('Inscription annulée.')
-  })
-
-  it('mergeRegistrations fusionne sans doublons sur eventId', async () => {
-    getRegistrations.mockRejectedValueOnce(new Error('Network'))
-    const store = useRegistrationStore()
-    store.$state.localRegistrations = [
-      { id: 500, eventId: 99, eventTitle: 'Local', firstName: 'A', lastName: 'B', email: 'a@b.c', status: 'Confirmée', registeredAt: 'aujourd\'hui' }
-    ]
-    await store.fetchRegistrations()
-    // L'événement 99 ne doit apparaître qu'une seule fois (version locale).
-    expect(store.registrations.filter((r) => r.eventId === 99)).toHaveLength(1)
+    await store.fetchEventRegistrations(1)
+    expect(store.registrations).toHaveLength(1)
   })
 })
 
 describe('authStore', () => {
-  it('login réussit et définit l\'utilisateur', async () => {
-    login.mockResolvedValueOnce({
-      token: 'jwt',
-      user: { id: 1, email: 'a@b.c', role: 'Participant' }
-    })
+  it('login reussit et definit l utilisateur', async () => {
+    login.mockResolvedValueOnce({ token: 'jwt', user: { id: 1, email: 'a@b.c', role: 'participant' } })
+    searchParticipants.mockResolvedValueOnce([])
     const store = useAuthStore()
     await store.login('a@b.c', 'secret')
     expect(store.user.email).toBe('a@b.c')
-    expect(store.success).toBe('Connexion réussie. Bienvenue !')
-    expect(store.loading).toBe(false)
+    expect(store.success).toBe('Connexion reussie. Bienvenue !')
   })
 
-  it('login capture l\'erreur et vide l\'utilisateur', async () => {
-    login.mockRejectedValueOnce(
-      Object.assign(new Error('Identifiants incorrects (400)'), { status: 400 })
-    )
+  it('login capture l erreur et vide l utilisateur, jamais de session fictive', async () => {
+    login.mockRejectedValueOnce(new Error('Identifiants incorrects'))
     const store = useAuthStore()
     store.user = { id: 1 }
-    await store.login('a@b.c', 'wrong')
+    await expect(store.login('a@b.c', 'wrong')).rejects.toThrow()
     expect(store.user).toBeNull()
-    expect(store.error).toContain('400')
+    expect(store.error).toContain('Identifiants incorrects')
   })
 
-  it('register valide firstName, lastName et e-mail', async () => {
+  it('register exige un role', async () => {
     const store = useAuthStore()
-    await store.register({ firstName: '', lastName: 'Diop', email: 'a@b.c', password: 'secret' })
-    expect(store.error).toContain('nom et le prénom')
-    await store.register({ firstName: 'Awa', lastName: 'Diop', email: 'sans-arobase', password: 'secret' })
-    expect(store.error).toContain('e-mail est invalide')
+    await expect(store.register({ email: 'a@b.c', password: 'secret', role: '' })).rejects.toThrow()
+    expect(store.error).toContain('role')
     expect(register).not.toHaveBeenCalled()
   })
 
-  it('register réussit et définit l\'utilisateur', async () => {
-    register.mockResolvedValueOnce({ token: 'jwt' })
+  it('register reussit et definit l utilisateur', async () => {
+    register.mockResolvedValueOnce({ token: 'jwt', user: { id: 2, email: 'awa@b.c', role: 'participant' } })
+    searchParticipants.mockResolvedValueOnce([])
     const store = useAuthStore()
-    await store.register({ firstName: 'Awa', lastName: 'Diop', email: 'awa@b.c', password: 'secret' })
-    expect(store.user.firstName).toBe('Awa')
-    expect(store.success).toBe('Compte créé avec succès.')
+    await store.register({ email: 'awa@b.c', password: 'secret', role: 'participant' })
+    expect(store.user.email).toBe('awa@b.c')
+    expect(store.success).toBe('Compte cree avec succes.')
   })
 
-  it('logout vide l\'utilisateur et le statut', async () => {
+  it('resolveParticipantProfile trouve le profil par email', async () => {
+    searchParticipants.mockResolvedValueOnce([{ id: 7, name: 'Awa Diop', email: 'awa@b.c' }])
+    const store = useAuthStore()
+    store.user = { id: 1, email: 'awa@b.c', role: 'participant' }
+    await store.resolveParticipantProfile()
+    expect(store.participantId).toBe(7)
+  })
+
+  it('logout vide utilisateur, profil participant et statut', () => {
     const store = useAuthStore()
     store.user = { id: 1 }
+    store.participantProfile = { id: 7 }
     store.success = 'ok'
-    await store.logout()
+    store.logout()
     expect(store.user).toBeNull()
+    expect(store.participantProfile).toBeNull()
     expect(store.success).toBe('')
   })
 
-  it('hydrateFromToken restaure l\'utilisateur depuis l\'API', async () => {
-    fetchCurrentUser.mockResolvedValueOnce({ id: 1, role: 'Admin' })
-    // Un jeton valide (exp dans le futur) pour que getToken() ne le rejette
-    // pas : la garde de store.hydrateFromToken exige un jeton présent.
+  it('hydrateFromToken restaure l utilisateur depuis l API', async () => {
+    fetchCurrentUser.mockResolvedValueOnce({ id: 1, email: 'a@b.c', role: 'organisateur' })
     const { saveToken } = await import('../../services/token')
-    const token = makeValidJwt({ id: 1 })
-    saveToken(token)
+    saveToken(makeValidJwt({ id: 1, email: 'a@b.c', role: 'organisateur' }))
     const store = useAuthStore()
     await store.hydrateFromToken()
-    expect(store.user.role).toBe('Admin')
-    expect(fetchCurrentUser).toHaveBeenCalled()
+    expect(store.user.role).toBe('organisateur')
   })
 
-  it('isAuthenticated dépend de user ou du jeton', () => {
+  it('isAuthenticated depend de user ou du jeton', () => {
     const store = useAuthStore()
     expect(store.isAuthenticated).toBe(false)
     store.user = { id: 1 }
     expect(store.isAuthenticated).toBe(true)
-    store.user = null
-    expect(store.isAuthenticated).toBe(false)
   })
 })
 
 describe('participantStore', () => {
-  it('fetchParticipants charge la liste avec recherche locale', async () => {
-    getParticipants.mockResolvedValueOnce([
-      { id: 1, firstName: 'Awa', lastName: 'Diop', email: 'awa@b.c' },
-      { id: 2, firstName: 'Moussa', lastName: 'Ba', email: 'moussa@b.c' }
-    ])
-    const store = useParticipantStore()
-    await store.fetchParticipants({ search: 'Moussa' })
-    expect(store.participants).toHaveLength(1)
-    expect(store.participants[0].lastName).toBe('Ba')
-  })
-
-  it('fetchParticipantById charge un participant via l\'API', async () => {
-    getParticipantById.mockResolvedValueOnce({
-      id: 1,
-      firstName: 'Awa',
-      lastName: 'Diop'
-    })
-    const store = useParticipantStore()
-    await store.fetchParticipantById(1)
-    expect(store.currentParticipant.lastName).toBe('Diop')
-  })
-
-  it('fetchParticipantById bascule en repli local si l\'API échoue', async () => {
-    getParticipantById.mockRejectedValueOnce(new Error('Network'))
+  it('fetchParticipants charge une page', async () => {
+    getParticipants.mockResolvedValueOnce({ data: [{ id: 1, name: 'Awa Diop' }], pagination: { page: 1, limit: 20, total: 1, totalPages: 1 } })
     const store = useParticipantStore()
     await store.fetchParticipants()
-    const first = store.participants[0]
-    await store.fetchParticipantById(first.id)
-    expect(store.currentParticipant).not.toBeNull()
+    expect(store.participants).toHaveLength(1)
+  })
+
+  it('searchParticipants remplit participants avec les resultats', async () => {
+    searchParticipants.mockResolvedValueOnce([{ id: 2, name: 'Moussa Ba' }])
+    const store = useParticipantStore()
+    await store.searchParticipants({ name: 'Moussa' })
+    expect(store.participants).toHaveLength(1)
+  })
+
+  it('fetchParticipantById charge un participant', async () => {
+    getParticipantById.mockResolvedValueOnce({ id: 1, name: 'Awa Diop' })
+    const store = useParticipantStore()
+    await store.fetchParticipantById(1)
+    expect(store.currentParticipant.name).toBe('Awa Diop')
+  })
+
+  it('fetchParticipantById propage l erreur sans repli local', async () => {
+    getParticipantById.mockRejectedValueOnce(new Error('Participant introuvable'))
+    const store = useParticipantStore()
+    await store.fetchParticipantById(999)
+    expect(store.currentParticipant).toBeNull()
+    expect(store.error).toContain('introuvable')
+  })
+
+  it('createParticipant cree le profil', async () => {
+    createParticipant.mockResolvedValueOnce({ id: 3, name: 'Nouveau' })
+    const store = useParticipantStore()
+    const created = await store.createParticipant({ name: 'Nouveau', email: 'n@b.c', type: 'etudiant' })
+    expect(created.id).toBe(3)
+    expect(store.success).toContain('cree')
+  })
+
+  it('updateParticipant met a jour le profil courant', async () => {
+    updateParticipant.mockResolvedValueOnce({ id: 1, name: 'Nom modifie' })
+    const store = useParticipantStore()
+    store.currentParticipant = { id: 1, name: 'Ancien nom' }
+    await store.updateParticipant(1, { name: 'Nom modifie' })
+    expect(store.currentParticipant.name).toBe('Nom modifie')
+  })
+
+  it('removeParticipant retire le participant de la liste', async () => {
+    deleteParticipant.mockResolvedValueOnce()
+    const store = useParticipantStore()
+    store.participants = [{ id: 1 }, { id: 2 }]
+    await store.removeParticipant(1)
+    expect(store.participants).toHaveLength(1)
   })
 })

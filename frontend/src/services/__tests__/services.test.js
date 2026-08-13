@@ -1,29 +1,34 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { login, register, logout, fetchCurrentUser, getCurrentUser } from '../authService'
+import { getEvents, getEventById, getEventAvailability, createEvent } from '../eventService'
 import {
-  getRegistrations,
+  createParticipant,
+  getParticipants,
+  searchParticipants,
+  getParticipantById,
+  updateParticipant,
+  deleteParticipant
+} from '../participantService'
+import {
   createRegistration,
-  cancelRegistration
+  cancelRegistration,
+  getEventRegistrations,
+  getParticipantRegistrations,
+  getEventStats,
+  getGlobalStats
 } from '../registrationService'
-import { getParticipants, getParticipantById } from '../participantService'
-import { mapRegistrationPayload } from '../registrationMapper'
 import apiClient from '../api'
 
 /**
- * Tests des services API (auth, registrations, participants).
- *
- * Aucun endpoint inventé : seuls les chemins réels du code source
- * sont testés :
- * - POST /auth/login, /auth/register, /auth/logout
- * - GET  /auth/me
- * - GET/POST /registrations, DELETE /registrations/:id
- * - GET  /participants, /participants/:id
+ * Tests des services API, alignes sur les contrats reels des 4
+ * microservices (knowledge-base/api/*.md). Aucun endpoint invente.
  */
 
 vi.mock('../api', () => ({
   default: {
     get: vi.fn(),
     post: vi.fn(),
+    put: vi.fn(),
     delete: vi.fn(),
     interceptors: { request: { use: vi.fn() }, response: { use: vi.fn() } }
   }
@@ -37,167 +42,177 @@ beforeEach(() => {
 describe('authService', () => {
   it('POST /auth/login stocke le jeton et retourne data', async () => {
     apiClient.post.mockResolvedValueOnce({
-      data: { token: 'jwt.token.here', user: { id: 1, email: 'a@b.c' } }
+      data: { token: 'jwt.token.here', user: { id: 1, email: 'a@b.c', role: 'participant' } }
     })
     const result = await login({ email: 'a@b.c', password: 'secret' })
-    expect(result).toEqual({ token: 'jwt.token.here', user: { id: 1, email: 'a@b.c' } })
+    expect(result.user).toEqual({ id: 1, email: 'a@b.c', role: 'participant' })
     expect(window.localStorage.getItem('eventhub_token')).toBe('jwt.token.here')
-    expect(apiClient.post).toHaveBeenCalledWith('/auth/login', {
-      email: 'a@b.c',
-      password: 'secret'
-    })
+    expect(apiClient.post).toHaveBeenCalledWith('/auth/login', { email: 'a@b.c', password: 'secret' })
   })
 
-  it('POST /auth/register envoie { name, email, password }', async () => {
-    apiClient.post.mockResolvedValueOnce({ data: { token: 'jwt2' } })
-    await register({ name: 'Awa Diop', email: 'awa@b.c', password: 'secret' })
+  it('POST /auth/register envoie { email, password, role }, sans champ name', async () => {
+    apiClient.post.mockResolvedValueOnce({ data: { token: 'jwt2', user: { id: 2 } } })
+    await register({ email: 'awa@b.c', password: 'secret', role: 'organisateur' })
     expect(apiClient.post).toHaveBeenCalledWith('/auth/register', {
-      name: 'Awa Diop',
       email: 'awa@b.c',
-      password: 'secret'
+      password: 'secret',
+      role: 'organisateur'
     })
   })
 
-  it('logout supprime le jeton local', async () => {
+  it('logout supprime le jeton local', () => {
     window.localStorage.setItem('eventhub_token', 'jwt')
-    await logout()
+    logout()
     expect(window.localStorage.getItem('eventhub_token')).toBeNull()
   })
 
-  it('fetchCurrentUser retourne data.user ou data, null en cas d\'erreur', async () => {
-    apiClient.get.mockResolvedValueOnce({ data: { user: { id: 1 } } })
-    await expect(fetchCurrentUser()).resolves.toEqual({ id: 1 })
-    vi.clearAllMocks()
-    apiClient.get.mockResolvedValueOnce({ data: { id: 2 } })
-    await expect(fetchCurrentUser()).resolves.toEqual({ id: 2 })
-    vi.clearAllMocks()
-    apiClient.get.mockRejectedValueOnce(new Error('500'))
-    await expect(fetchCurrentUser()).resolves.toBeNull()
+  it('fetchCurrentUser retourne data.user aupres de GET /auth/me', async () => {
+    apiClient.get.mockResolvedValueOnce({ data: { user: { id: 1, email: 'a@b.c', role: 'participant' } } })
+    await expect(fetchCurrentUser()).resolves.toEqual({ id: 1, email: 'a@b.c', role: 'participant' })
     expect(apiClient.get).toHaveBeenCalledWith('/auth/me')
   })
 
-  it('getCurrentUser décode l\'utilisateur depuis un jeton valide', () => {
+  it('getCurrentUser decode id/email/role depuis un jeton valide', () => {
     const token = makeJwt({
-      sub: 1,
-      name: 'Awa',
-      // Champ exp dans le futur pour que getToken() ne rejette pas le jeton.
+      id: 1,
+      email: 'awa@b.c',
+      role: 'participant',
       exp: Math.floor(Date.now() / 1000) + 3600
     })
     window.localStorage.setItem('eventhub_token', token)
-    expect(getCurrentUser()).toEqual({
-      sub: 1,
-      name: 'Awa',
-      exp: expect.any(Number)
-    })
+    expect(getCurrentUser()).toEqual({ id: 1, email: 'awa@b.c', role: 'participant' })
     window.localStorage.removeItem('eventhub_token')
     expect(getCurrentUser()).toBeNull()
   })
 
-  it('getCurrentUser ignore un jeton expiré', () => {
-    const token = makeJwt({
-      sub: 1,
-      name: 'Awa',
-      exp: Math.floor(Date.now() / 1000) - 3600
-    })
+  it('getCurrentUser ignore un jeton expire', () => {
+    const token = makeJwt({ id: 1, email: 'awa@b.c', role: 'participant', exp: Math.floor(Date.now() / 1000) - 3600 })
     window.localStorage.setItem('eventhub_token', token)
     expect(getCurrentUser()).toBeNull()
     expect(window.localStorage.getItem('eventhub_token')).toBeNull()
   })
 })
 
-describe('registrationService', () => {
-  it('GET /registrations normalise tableau direct ou data.registrations', async () => {
-    apiClient.get.mockResolvedValueOnce({ data: [{ id: 10 }] })
-    await expect(getRegistrations()).resolves.toEqual([{ id: 10 }])
-    vi.clearAllMocks()
-    apiClient.get.mockResolvedValueOnce({ data: { registrations: [{ id: 11 }] } })
-    await expect(getRegistrations()).resolves.toEqual([{ id: 11 }])
-    expect(apiClient.get).toHaveBeenCalledWith('/registrations')
+describe('eventService', () => {
+  it('GET /events transmet page/limit et retourne { data, pagination }', async () => {
+    apiClient.get.mockResolvedValueOnce({ data: { data: [{ id: 1 }], pagination: { page: 1, limit: 20, total: 1, totalPages: 1 } } })
+    const result = await getEvents({ page: 2, limit: 10 })
+    expect(apiClient.get).toHaveBeenCalledWith('/events', { params: { page: 2, limit: 10 } })
+    expect(result.data).toEqual([{ id: 1 }])
   })
 
-  it('POST /registrations envoie le payload mappé (eventId + participant)', async () => {
-    apiClient.post.mockResolvedValueOnce({ data: { id: 12 } })
-    const result = await createRegistration({
-      eventId: 3,
-      participant: {
-        fullName: 'Awa Diop',
-        email: 'awa@b.c',
-        phone: '+221770000000',
-        dietaryRequirements: 'Végétarien'
-      }
-    })
-    expect(apiClient.post).toHaveBeenCalledWith('/registrations', {
-      eventId: 3,
-      participant: {
-        fullName: 'Awa Diop',
-        email: 'awa@b.c',
-        phone: '+221770000000',
-        dietaryRequirements: 'Végétarien'
-      }
-    })
-    expect(result).toEqual({ id: 12 })
+  it('GET /events/:id retourne l evenement', async () => {
+    apiClient.get.mockResolvedValueOnce({ data: { id: 5, title: 'Conference' } })
+    await expect(getEventById(5)).resolves.toEqual({ id: 5, title: 'Conference' })
+    expect(apiClient.get).toHaveBeenCalledWith('/events/5')
   })
 
-  it('DELETE /registrations/:id utilise l\'identifiant', async () => {
-    apiClient.delete.mockResolvedValueOnce({ data: {} })
-    await cancelRegistration(9)
-    expect(apiClient.delete).toHaveBeenCalledWith('/registrations/9')
+  it('GET /events/:id/availability retourne la disponibilite', async () => {
+    apiClient.get.mockResolvedValueOnce({ data: { eventId: 5, maxCapacity: 10, registeredCount: 3, remainingSeats: 7, isFull: false } })
+    await expect(getEventAvailability(5)).resolves.toEqual({ eventId: 5, maxCapacity: 10, registeredCount: 3, remainingSeats: 7, isFull: false })
+    expect(apiClient.get).toHaveBeenCalledWith('/events/5/availability')
+  })
+
+  it('POST /events envoie exactement title/description/date/location/maxCapacity', async () => {
+    apiClient.post.mockResolvedValueOnce({ data: { id: 9 } })
+    await createEvent({ title: ' Conference IA ', date: '2099-01-01T00:00:00.000Z', location: 'Dakar', maxCapacity: '50' })
+    expect(apiClient.post).toHaveBeenCalledWith('/events', {
+      title: 'Conference IA',
+      description: undefined,
+      date: '2099-01-01T00:00:00.000Z',
+      location: 'Dakar',
+      maxCapacity: 50
+    })
   })
 })
 
 describe('participantService', () => {
-  it('GET /participants normalise data.participants ou tableau direct', async () => {
-    apiClient.get.mockResolvedValueOnce({ data: { participants: [{ id: 1 }] } })
-    await expect(getParticipants()).resolves.toEqual([{ id: 1 }])
-    vi.clearAllMocks()
-    apiClient.get.mockResolvedValueOnce({ data: [{ id: 2 }] })
-    await expect(getParticipants()).resolves.toEqual([{ id: 2 }])
+  it('POST /participants envoie name/email/phone/type', async () => {
+    apiClient.post.mockResolvedValueOnce({ data: { id: 1 } })
+    await createParticipant({ name: ' Awa Diallo ', email: 'awa@dit.sn', type: 'etudiant' })
+    expect(apiClient.post).toHaveBeenCalledWith('/participants', {
+      name: 'Awa Diallo',
+      email: 'awa@dit.sn',
+      phone: undefined,
+      type: 'etudiant'
+    })
   })
 
-  it('GET /participants/:id retourne data.participant ou data', async () => {
-    apiClient.get.mockResolvedValueOnce({ data: { participant: { id: 5 } } })
+  it('GET /participants transmet page/limit/type', async () => {
+    apiClient.get.mockResolvedValueOnce({ data: { data: [], pagination: {} } })
+    await getParticipants({ page: 1, limit: 20, type: 'etudiant' })
+    expect(apiClient.get).toHaveBeenCalledWith('/participants', { params: { page: 1, limit: 20, type: 'etudiant' } })
+  })
+
+  it('GET /participants/search retourne data.data', async () => {
+    apiClient.get.mockResolvedValueOnce({ data: { data: [{ id: 2 }] } })
+    await expect(searchParticipants({ email: 'awa@dit.sn' })).resolves.toEqual([{ id: 2 }])
+    expect(apiClient.get).toHaveBeenCalledWith('/participants/search', { params: { email: 'awa@dit.sn' } })
+  })
+
+  it('GET /participants/:id retourne le participant', async () => {
+    apiClient.get.mockResolvedValueOnce({ data: { id: 5 } })
     await expect(getParticipantById(5)).resolves.toEqual({ id: 5 })
     expect(apiClient.get).toHaveBeenCalledWith('/participants/5')
   })
+
+  it('PUT /participants/:id transmet les champs fournis', async () => {
+    apiClient.put.mockResolvedValueOnce({ data: { id: 5, name: 'Nouveau nom' } })
+    await updateParticipant(5, { name: 'Nouveau nom' })
+    expect(apiClient.put).toHaveBeenCalledWith('/participants/5', { name: 'Nouveau nom' })
+  })
+
+  it('DELETE /participants/:id', async () => {
+    apiClient.delete.mockResolvedValueOnce({})
+    await deleteParticipant(5)
+    expect(apiClient.delete).toHaveBeenCalledWith('/participants/5')
+  })
 })
 
-describe('mapRegistrationPayload — mappage exact du formulaire', () => {
-  it('convertit les champs plats vers eventId + participant', () => {
-    const payload = mapRegistrationPayload({
-      eventId: 3,
-      fullName: ' Awa Diop ',
-      email: 'awa@b.c',
-      phone: ' ',
-      dietary: 'Végétarien'
-    })
-    expect(payload).toEqual({
-      eventId: 3,
-      participant: {
-        fullName: 'Awa Diop',
-        email: 'awa@b.c',
-        phone: '',
-        dietaryRequirements: 'Végétarien'
-      }
+describe('registrationService', () => {
+  it('POST /registrations envoie eventId + participantId (nombres)', async () => {
+    apiClient.post.mockResolvedValueOnce({ data: { id: 12 } })
+    const result = await createRegistration({ eventId: '3', participantId: '7' })
+    expect(apiClient.post).toHaveBeenCalledWith('/registrations', { eventId: 3, participantId: 7 })
+    expect(result).toEqual({ id: 12 })
+  })
+
+  it('DELETE /registrations/:id annule et retourne l inscription mise a jour', async () => {
+    apiClient.delete.mockResolvedValueOnce({ data: { id: 9, status: 'annulee' } })
+    await expect(cancelRegistration(9)).resolves.toEqual({ id: 9, status: 'annulee' })
+    expect(apiClient.delete).toHaveBeenCalledWith('/registrations/9')
+  })
+
+  it('GET /registrations/event/:eventId transmet les parametres', async () => {
+    apiClient.get.mockResolvedValueOnce({ data: { data: [], pagination: {} } })
+    await getEventRegistrations(3, { status: 'confirmee', page: 1, limit: 20, enrich: true })
+    expect(apiClient.get).toHaveBeenCalledWith('/registrations/event/3', {
+      params: { status: 'confirmee', page: 1, limit: 20, enrich: true }
     })
   })
 
-  it('accepte un payload déjà imbriqué', () => {
-    const payload = mapRegistrationPayload({
-      eventId: 3,
-      participant: { fullName: 'X', email: 'x@y.z' }
+  it('GET /registrations/participant/:participantId transmet les parametres', async () => {
+    apiClient.get.mockResolvedValueOnce({ data: { data: [], pagination: {} } })
+    await getParticipantRegistrations(7, { page: 1, limit: 20 })
+    expect(apiClient.get).toHaveBeenCalledWith('/registrations/participant/7', {
+      params: { status: undefined, page: 1, limit: 20, enrich: true }
     })
-    expect(payload.participant.fullName).toBe('X')
-    expect(payload.eventId).toBe(3)
   })
 
-  it('convertit eventId en nombre', () => {
-    expect(mapRegistrationPayload({ eventId: '7' }).eventId).toBe(7)
+  it('GET /registrations/stats/event/:eventId', async () => {
+    apiClient.get.mockResolvedValueOnce({ data: { eventId: 3, confirmedCount: 4, cancelledCount: 1, totalCount: 5 } })
+    await expect(getEventStats(3)).resolves.toEqual({ eventId: 3, confirmedCount: 4, cancelledCount: 1, totalCount: 5 })
+  })
+
+  it('GET /registrations/stats', async () => {
+    apiClient.get.mockResolvedValueOnce({ data: { totalRegistrations: 10, totalConfirmed: 8, totalCancelled: 2, byEvent: [] } })
+    await expect(getGlobalStats()).resolves.toEqual({ totalRegistrations: 10, totalConfirmed: 8, totalCancelled: 2, byEvent: [] })
   })
 })
 
 /**
- * Utilitaire : crée un JWT minimal dont le payload est lisible
- * par decodeToken (base64url).
+ * Utilitaire : cree un JWT minimal dont le payload est lisible par
+ * decodeToken (base64url).
  */
 function makeJwt(payload) {
   const b64 = (obj) =>

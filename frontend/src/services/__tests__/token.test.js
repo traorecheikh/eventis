@@ -25,7 +25,7 @@ function makeJwt(payload, secret = 'secret') {
   return `${b64({ alg: 'HS256', typ: 'JWT' })}.${b64(payload)}.${b64(secret)}`
 }
 
-describe('token.js — gestion du jeton JWT', () => {
+describe('token.js : gestion du jeton JWT', () => {
   beforeEach(() => {
     window.localStorage.clear()
   })
