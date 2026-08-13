@@ -1,64 +1,27 @@
 <script setup>
 import { RouterLink } from 'vue-router'
+import { Compass, Home } from 'lucide-vue-next'
 </script>
 
 <template>
-  <div class="not-found">
-    <span class="error-code">404</span>
-    <h1>Page introuvable</h1>
-    <p>
-      La page que vous recherchez n'existe pas ou a été déplacée.
+  <div
+    v-motion
+    :initial="{ opacity: 0, y: 12 }"
+    :enter="{ opacity: 1, y: 0 }"
+    class="flex min-h-[60vh] flex-col items-center justify-center gap-4 text-center"
+  >
+    <Compass class="h-12 w-12 text-brand-300" aria-hidden="true" />
+    <span class="text-6xl font-extrabold text-slate-200">404</span>
+    <h1 class="text-2xl font-semibold text-slate-900">Page introuvable</h1>
+    <p class="max-w-md text-slate-500">
+      La page que vous recherchez n'existe pas ou a ete deplacee.
     </p>
     <RouterLink
       to="/"
-      class="btn btn-primary"
+      class="mt-2 inline-flex h-11 items-center gap-2 rounded-lg bg-brand-600 px-5 text-sm font-medium text-white transition-colors hover:bg-brand-700"
     >
-      Retour à l'accueil
+      <Home class="h-4 w-4" aria-hidden="true" />
+      Retour a l'accueil
     </RouterLink>
   </div>
 </template>
-
-<style scoped>
-.not-found {
-  text-align: center;
-  padding: 4rem 1rem;
-}
-
-.error-code {
-  display: block;
-  font-size: 6rem;
-  font-weight: 800;
-  color: #e2e8f0;
-  line-height: 1;
-  margin-bottom: 1rem;
-}
-
-h1 {
-  font-size: 1.75rem;
-  color: #1e293b;
-  margin-bottom: 0.75rem;
-}
-
-.not-found p {
-  color: #64748b;
-  margin-bottom: 2rem;
-}
-
-.btn {
-  display: inline-block;
-  padding: 0.75rem 1.5rem;
-  border-radius: 0.375rem;
-  text-decoration: none;
-  font-weight: 600;
-  transition: background 0.2s;
-}
-
-.btn-primary {
-  background: #2563eb;
-  color: #fff;
-}
-
-.btn-primary:hover {
-  background: #1d4ed8;
-}
-</style>

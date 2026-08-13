@@ -1,195 +1,60 @@
 <script setup>
-import { computed } from 'vue'
-import { RouterLink } from 'vue-router'
+import { CalendarDays, MapPin, ArrowRight } from 'lucide-vue-next'
 
 /**
- * Carte d'événement réutilisable.
+ * Carte d'evenement reutilisable.
  *
  * Props :
- * - event : objet événement (id, title, date, location, category,
- *           maxParticipants, currentParticipants, status)
+ * - event : { id, title, date, location, description? }
  *
- * Affiche une barre de progression de la capacité et un badge
- * « Complet » lorsque toutes les places sont prises.
+ * La disponibilite (places restantes) n'est pas incluse dans la
+ * liste des evenements par le backend : elle est consultee en
+ * temps reel sur la page de detail (GET /events/:id/availability),
+ * pas approximee ici.
  */
-const props = defineProps({
+defineProps({
   event: {
     type: Object,
     required: true
-  },
-  /**
-   * Mode administration : affiche les actions de gestion
-   * (suppression déléguée au store via DELETE /api/events/:id).
-   */
-  admin: {
-    type: Boolean,
-    default: false
   }
 })
 
-const emit = defineEmits(['delete'])
-
-function handleDelete() {
-  if (window.confirm(`Supprimer l'événement « ${props.event.title} » ?`)) {
-    emit('delete', props.event.id)
-  }
+function formatDate(iso) {
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return iso
+  return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
 }
-
-const fillPercent = computed(() => {
-  const e = props.event
-  if (!e.maxParticipants) return 0
-  return Math.min(100, Math.round((e.currentParticipants / e.maxParticipants) * 100))
-})
-
-const isFull = computed(() => fillPercent.value >= 100)
 </script>
 
 <template>
-  <article class="event-card card card-hover">
-    <header class="event-card-header">
-      <span class="event-category">{{ event.category }}</span>
-      <span
-        v-if="isFull"
-        class="badge badge-danger"
-      >Complet</span>
-    </header>
-
-    <h3 class="event-title">
-      <RouterLink
-        :to="`/events/${event.id}`"
-        class="event-title-link"
-      >
+  <article class="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md">
+    <h3 class="text-lg font-semibold text-slate-900">
+      <RouterLink :to="`/events/${event.id}`" class="hover:text-brand-600">
         {{ event.title }}
       </RouterLink>
     </h3>
 
-    <ul class="event-meta">
-      <li>📅 {{ event.date }}</li>
-      <li>📍 {{ event.location }}</li>
-      <li>👥 {{ event.currentParticipants }} / {{ event.maxParticipants }} participants</li>
+    <ul class="flex flex-col gap-1.5 text-sm text-slate-600">
+      <li class="flex items-center gap-2">
+        <CalendarDays class="h-4 w-4 text-brand-600" aria-hidden="true" />
+        {{ formatDate(event.date) }}
+      </li>
+      <li class="flex items-center gap-2">
+        <MapPin class="h-4 w-4 text-brand-600" aria-hidden="true" />
+        {{ event.location }}
+      </li>
     </ul>
 
-    <div class="event-capacity">
-      <div
-        class="event-capacity-bar"
-        :class="{ full: isFull }"
-        role="progressbar"
-        :aria-valuenow="fillPercent"
-        aria-valuemin="0"
-        aria-valuemax="100"
-        :aria-label="`${fillPercent}% des places occupées`"
-        :style="{ width: fillPercent + '%' }"
-      />
-      <span class="event-capacity-text">{{ fillPercent }}% rempli</span>
-    </div>
+    <p v-if="event.description" class="line-clamp-2 text-sm text-slate-500">
+      {{ event.description }}
+    </p>
 
-    <footer class="event-card-footer">
-      <RouterLink
-        :to="`/events/${event.id}`"
-        class="btn btn-secondary btn-sm"
-      >
-        Voir les détails
-      </RouterLink>
-      <RouterLink
-        v-if="!isFull"
-        :to="`/events/${event.id}/register`"
-        class="btn btn-primary btn-sm"
-      >
-        S'inscrire
-      </RouterLink>
-      <span
-        v-else
-        class="btn btn-ghost btn-sm"
-        aria-disabled="true"
-      >
-        Places épuisées
-      </span>
-      <button
-        v-if="admin"
-        type="button"
-        class="btn btn-danger-outline btn-sm"
-        @click="handleDelete"
-      >
-        Supprimer
-      </button>
-    </footer>
+    <RouterLink
+      :to="`/events/${event.id}`"
+      class="mt-auto flex items-center gap-1.5 pt-2 text-sm font-medium text-brand-600 hover:text-brand-700"
+    >
+      Voir les details
+      <ArrowRight class="h-4 w-4" aria-hidden="true" />
+    </RouterLink>
   </article>
 </template>
-
-<style scoped>
-.event-card {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  padding: var(--space-5);
-}
-
-.event-card-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
-}
-
-.event-category {
-  font-size: var(--font-size-xs);
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--color-primary);
-  background: var(--color-primary-soft);
-  padding: 0.25rem 0.625rem;
-  border-radius: var(--radius-full);
-}
-
-.event-title {
-  font-size: var(--font-size-lg);
-}
-
-.event-title-link {
-  color: var(--color-ink);
-  text-decoration: none;
-}
-
-.event-title-link:hover {
-  color: var(--color-primary);
-}
-
-.event-meta {
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  font-size: var(--font-size-sm);
-  color: var(--color-text-secondary);
-}
-
-.event-capacity {
-  margin-top: auto;
-}
-
-.event-capacity-bar {
-  height: 6px;
-  background: var(--color-primary);
-  border-radius: var(--radius-full);
-  transition: width 400ms ease;
-}
-
-.event-capacity-bar.full {
-  background: var(--color-danger);
-}
-
-.event-capacity-text {
-  display: block;
-  margin-top: var(--space-1);
-  font-size: var(--font-size-xs);
-  color: var(--color-text-muted);
-}
-
-.event-card-footer {
-  display: flex;
-  gap: var(--space-2);
-  padding-top: var(--space-3);
-  border-top: 1px solid var(--color-border);
-}
-</style>

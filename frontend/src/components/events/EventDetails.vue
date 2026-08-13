@@ -1,248 +1,124 @@
 <script setup>
-import { computed } from 'vue'
 import { RouterLink } from 'vue-router'
+import { ArrowLeft, CalendarDays, MapPin, Users } from 'lucide-vue-next'
 
 /**
- * Bloc de détails d'un événement.
+ * Bloc de details d'un evenement.
  *
  * Props :
- * - event : objet événement complet
+ * - event : objet evenement complet { id, title, description?, date,
+ *   location, maxCapacity, creatorId, createdAt, updatedAt }
+ * - availability : { eventId, maxCapacity, registeredCount,
+ *   remainingSeats, isFull } | null, issu d'un appel separe a
+ *   GET /events/:id/availability (peut etre indisponible si le
+ *   registrations-service ne repond pas : on l'affiche alors comme
+ *   tel, jamais de valeur devinee).
  *
- * Affiche description, infos pratiques, capacité et
- * appels à l'action.
+ * PUT/DELETE /events/:id n'existent pas encore cote backend : aucune
+ * action d'edition ou de suppression n'est proposee ici.
  */
-const props = defineProps({
+defineProps({
   event: {
     type: Object,
     required: true
   },
-  /**
-   * Mode administration : affiche les actions de gestion
-   * (modifier / supprimer déléguées au store).
-   */
-  admin: {
-    type: Boolean,
-    default: false
+  availability: {
+    type: Object,
+    default: null
   }
 })
 
-const emit = defineEmits(['delete'])
-
-function handleDelete() {
-  if (window.confirm(`Supprimer l'événement « ${props.event.title} » ?`)) {
-    emit('delete', props.event.id)
-  }
+function formatDate(iso) {
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return iso
+  return date.toLocaleDateString('fr-FR', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
 }
-
-const fillPercent = computed(() => {
-  const e = props.event
-  if (!e.maxParticipants) return 0
-  return Math.min(100, Math.round((e.currentParticipants / e.maxParticipants) * 100))
-})
-
-const isFull = computed(() => fillPercent.value >= 100)
 </script>
 
 <template>
-  <section
-    class="event-details card"
-    :aria-label="`Détails de l'événement ${event.title}`"
+  <article
+    class="flex flex-col gap-6 rounded-xl border border-slate-200 bg-white p-6 sm:p-8"
+    :aria-label="`Details de l'evenement ${event.title}`"
   >
-    <header class="event-details-header">
-      <div>
-        <span class="event-category">{{ event.category }}</span>
-        <h1 class="event-title">
-          {{ event.title }}
-        </h1>
-      </div>
+    <header class="flex flex-wrap items-start justify-between gap-3">
+      <h1 class="text-2xl font-semibold text-slate-900">{{ event.title }}</h1>
       <span
-        v-if="isFull"
-        class="badge badge-danger"
-      >Complet</span>
+        v-if="availability?.isFull"
+        class="shrink-0 rounded-full bg-red-100 px-3 py-1 text-xs font-medium text-red-700"
+      >
+        Complet
+      </span>
     </header>
 
-    <ul class="event-details-meta">
-      <li>📅 <strong>Date :</strong> {{ event.date }}</li>
-      <li>🕐 <strong>Horaire :</strong> {{ event.time }}</li>
-      <li>📍 <strong>Lieu :</strong> {{ event.location }}</li>
-      <li>🎤 <strong>Organisateur :</strong> {{ event.organizer }}</li>
+    <ul class="flex flex-col gap-2 text-sm text-slate-600 sm:flex-row sm:flex-wrap sm:gap-6">
+      <li class="flex items-center gap-2">
+        <CalendarDays class="h-4 w-4 text-brand-600" aria-hidden="true" />
+        {{ formatDate(event.date) }}
+      </li>
+      <li class="flex items-center gap-2">
+        <MapPin class="h-4 w-4 text-brand-600" aria-hidden="true" />
+        {{ event.location }}
+      </li>
     </ul>
 
-    <div class="event-details-description">
-      <h2>Description</h2>
-      <p>{{ event.description }}</p>
+    <p v-if="event.description" class="whitespace-pre-line text-slate-700">
+      {{ event.description }}
+    </p>
+
+    <div class="rounded-lg border border-slate-200 bg-slate-50 p-4">
+      <div class="flex items-center gap-2 text-sm font-medium text-slate-700">
+        <Users class="h-4 w-4 text-brand-600" aria-hidden="true" />
+        Disponibilite
+      </div>
+      <template v-if="availability">
+        <p class="mt-1.5 text-sm text-slate-600">
+          {{ availability.remainingSeats }} place(s) restante(s) sur {{ availability.maxCapacity }}
+        </p>
+        <div class="mt-2 h-2 overflow-hidden rounded-full bg-slate-200">
+          <div
+            class="h-full rounded-full transition-[width]"
+            :class="availability.isFull ? 'bg-red-500' : 'bg-brand-600'"
+            :style="{ width: Math.min(100, Math.round((availability.registeredCount / availability.maxCapacity) * 100)) + '%' }"
+            role="progressbar"
+            :aria-valuenow="availability.registeredCount"
+            aria-valuemin="0"
+            :aria-valuemax="availability.maxCapacity"
+          />
+        </div>
+      </template>
+      <p v-else class="mt-1.5 text-sm text-slate-500">
+        Disponibilite momentanement indisponible.
+      </p>
     </div>
 
-    <div class="event-details-capacity">
-      <div class="capacity-info">
-        <span>Places occupées</span>
-        <strong>{{ event.currentParticipants }} / {{ event.maxParticipants }}</strong>
-      </div>
-      <div class="capacity-bar-track">
-        <div
-          class="capacity-bar-fill"
-          :class="{ full: isFull }"
-          role="progressbar"
-          :aria-valuenow="fillPercent"
-          aria-valuemin="0"
-          aria-valuemax="100"
-          :style="{ width: fillPercent + '%' }"
-        />
-      </div>
-      <span class="capacity-percent">{{ fillPercent }}% rempli</span>
-    </div>
-
-    <footer class="event-details-actions">
+    <footer class="flex flex-wrap items-center gap-3 border-t border-slate-200 pt-5">
       <RouterLink
         to="/events"
-        class="btn btn-ghost"
+        class="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-brand-600"
       >
-        ← Retour à la liste
+        <ArrowLeft class="h-4 w-4" aria-hidden="true" />
+        Retour a la liste
       </RouterLink>
       <RouterLink
-        v-if="!isFull"
+        v-if="!availability?.isFull"
         :to="`/events/${event.id}/register`"
-        class="btn btn-primary btn-lg"
+        class="ml-auto inline-flex h-11 items-center rounded-lg bg-brand-600 px-5 text-sm font-medium text-white transition-colors hover:bg-brand-700"
       >
-        S'inscrire à cet événement
+        S'inscrire a cet evenement
       </RouterLink>
       <span
         v-else
-        class="btn btn-ghost btn-lg"
-        aria-disabled="true"
+        class="ml-auto inline-flex h-11 items-center rounded-lg bg-slate-100 px-5 text-sm font-medium text-slate-500"
       >
-        Toutes les places sont réservées
+        Evenement complet
       </span>
-      <RouterLink
-        v-if="admin"
-        :to="props.admin ? `/events/${event.id}/edit?admin=1` : `/events/${event.id}/edit`"
-        class="btn btn-secondary"
-      >
-        ✏️ Modifier
-      </RouterLink>
-      <button
-        v-if="admin"
-        type="button"
-        class="btn btn-danger"
-        @click="handleDelete"
-      >
-        Supprimer
-      </button>
     </footer>
-  </section>
+  </article>
 </template>
-
-<style scoped>
-.event-details {
-  padding: var(--space-6);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-5);
-}
-
-.event-details-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: var(--space-3);
-}
-
-.event-category {
-  display: inline-block;
-  margin-bottom: var(--space-2);
-  font-size: var(--font-size-xs);
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--color-primary);
-  background: var(--color-primary-soft);
-  padding: 0.25rem 0.75rem;
-  border-radius: var(--radius-full);
-}
-
-.event-title {
-  font-size: var(--font-size-2xl);
-}
-
-.event-details-meta {
-  list-style: none;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: var(--space-2);
-  font-size: var(--font-size-sm);
-  color: var(--color-text-secondary);
-}
-
-.event-details-description h2 {
-  font-size: var(--font-size-lg);
-  margin-bottom: var(--space-2);
-}
-
-.event-details-description p {
-  color: var(--color-text-secondary);
-}
-
-.event-details-capacity {
-  background: var(--color-surface-soft);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  padding: var(--space-4);
-}
-
-.capacity-info {
-  display: flex;
-  justify-content: space-between;
-  font-size: var(--font-size-sm);
-  margin-bottom: var(--space-2);
-}
-
-.capacity-bar-track {
-  height: 8px;
-  background: var(--color-border);
-  border-radius: var(--radius-full);
-  overflow: hidden;
-}
-
-.capacity-bar-fill {
-  height: 100%;
-  background: var(--color-primary);
-  border-radius: var(--radius-full);
-  transition: width 400ms ease;
-}
-
-.capacity-bar-fill.full {
-  background: var(--color-danger);
-}
-
-.capacity-percent {
-  display: block;
-  margin-top: var(--space-2);
-  font-size: var(--font-size-xs);
-  color: var(--color-text-muted);
-}
-
-.event-details-actions {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: var(--space-3);
-  border-top: 1px solid var(--color-border);
-  padding-top: var(--space-4);
-  flex-wrap: wrap;
-}
-
-@media (max-width: 480px) {
-  .event-details {
-    padding: var(--space-4);
-  }
-
-  .event-title {
-    font-size: var(--font-size-xl);
-  }
-
-  .event-details-actions {
-    flex-direction: column;
-    align-items: stretch;
-  }
-}
-</style>

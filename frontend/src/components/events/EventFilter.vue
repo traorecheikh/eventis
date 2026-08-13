@@ -1,116 +1,62 @@
 <script setup>
-import { reactive, watch } from 'vue'
+import { ref, watch } from 'vue'
+import { refDebounced } from '@vueuse/core'
+import { Search, X } from 'lucide-vue-next'
 
 /**
- * Barre de filtres pour la liste d'événements.
+ * Barre de recherche pour la liste d'evenements.
  *
- * Props :
- * - categories : liste des catégories disponibles (issues du store)
- * - currentFilters : { search, category, onlyFull } synchronisé
- *   avec l'état de la vue
+ * L'API GET /api/events ne propose pas de recherche plein texte
+ * cote serveur : le filtrage (titre, lieu) s'applique uniquement
+ * sur la page d'evenements deja chargee par le eventStore. On
+ * l'annonce explicitement pour ne pas laisser croire a une
+ * recherche globale.
  *
- * Événements :
- * - filter : émis à chaque modification avec
- *   { search, category, onlyFull }
+ * Evenements :
+ * - filter : emis (debounce 350ms) avec le texte de recherche.
  */
-defineProps({
-  categories: {
-    type: Array,
-    default: () => ['Technologie', 'Design', 'Hackathon', 'Networking', 'Conférence', 'Atelier']
-  },
-  currentFilters: {
-    type: Object,
-    default: () => ({})
-  }
-})
-
 const emit = defineEmits(['filter'])
 
-const filters = reactive({
-  search: '',
-  category: '',
-  onlyFull: false
+const search = ref('')
+const debouncedSearch = refDebounced(search, 350)
+
+watch(debouncedSearch, (value) => {
+  emit('filter', value.trim())
 })
 
-watch(filters, () => emit('filter', { ...filters }), { deep: true })
+function clearSearch() {
+  search.value = ''
+}
 </script>
 
 <template>
   <div
-    class="event-filter card"
+    class="rounded-xl border border-slate-200 bg-white p-4"
     role="search"
-    aria-label="Filtrer les événements"
+    aria-label="Filtrer les evenements"
   >
-    <div class="event-filter-grid">
-      <label
-        class="sr-only"
-        for="filter-search"
-      >Rechercher un événement</label>
+    <label for="event-search" class="sr-only">Rechercher un evenement par titre ou lieu</label>
+    <div class="relative">
+      <Search class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden="true" />
       <input
-        id="filter-search"
-        v-model="filters.search"
+        id="event-search"
+        v-model="search"
         type="search"
-        class="form-control"
-        placeholder="🔍 Rechercher un événement..."
+        placeholder="Rechercher par titre ou lieu..."
+        class="w-full rounded-md border border-slate-300 py-2.5 pl-10 pr-9 text-base outline-none transition-colors focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
       >
-
-      <label
-        class="sr-only"
-        for="filter-category"
-      >Catégorie</label>
-      <select
-        id="filter-category"
-        v-model="filters.category"
-        class="form-control"
+      <button
+        v-if="search"
+        type="button"
+        class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 transition-colors hover:text-slate-600"
+        aria-label="Effacer la recherche"
+        @click="clearSearch"
       >
-        <option value="">
-          Toutes les catégories
-        </option>
-        <option
-          v-for="cat in categories"
-          :key="cat"
-          :value="cat"
-        >
-          {{ cat }}
-        </option>
-      </select>
-
-      <label class="checkbox-label">
-        <input
-          v-model="filters.showFullOnly"
-          type="checkbox"
-        >
-        <span>Afficher uniquement les événements complets</span>
-      </label>
+        <X class="h-4 w-4" aria-hidden="true" />
+      </button>
     </div>
+    <p class="mt-2 text-xs text-slate-400">
+      La recherche s'applique aux evenements de la page actuellement chargee.
+    </p>
   </div>
 </template>
-
-<style scoped>
-.event-filter {
-  padding: var(--space-4);
-}
-
-.event-filter-grid {
-  display: grid;
-  grid-template-columns: 2fr 1fr auto;
-  gap: var(--space-3);
-  align-items: center;
-}
-
-.checkbox-label {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  font-size: var(--font-size-sm);
-  color: var(--color-text-secondary);
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-@media (max-width: 768px) {
-  .event-filter-grid {
-    grid-template-columns: 1fr;
-  }
-}
-</style>

@@ -1,136 +1,121 @@
 <script setup>
-import { ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { onMounted, ref } from 'vue'
+import { toast } from 'vue-sonner'
+import { Plus } from 'lucide-vue-next'
 import EventFilter from '../components/events/EventFilter.vue'
 import EventList from '../components/events/EventList.vue'
+import EventForm from '../components/events/EventForm.vue'
 import LoadingSpinner from '../components/common/LoadingSpinner.vue'
 import ErrorMessage from '../components/common/ErrorMessage.vue'
 import AppButton from '../components/common/AppButton.vue'
-import { useEventStore } from '../stores'
-
-import { onMounted } from 'vue'
+import AppModal from '../components/common/AppModal.vue'
+import { useEventStore, useAuthStore } from '../stores'
 
 /**
- * Liste des événements avec filtres.
+ * Liste des evenements.
  *
- * La logique est déléguée au eventStore (architecture View →
- * Component → Store → Service API Axios).
+ * La logique est deleguee au eventStore (architecture View ->
+ * Component -> Store -> Service API -> Axios). GET /api/events ne
+ * propose pas de recherche plein texte cote serveur : le filtrage
+ * (EventFilter) s'applique uniquement sur la page chargee.
  *
- * En mode administration (route /dashboard/events ou
- * paramètre de requête ?admin=1), les actions de création
- * (POST /api/events) et suppression (DELETE /api/events/:id)
- * sont disponibles.
+ * La creation (POST /api/events) exige un Bearer JWT mais aucun
+ * role particulier cote backend : le bouton de creation est visible
+ * pour tout utilisateur connecte. PUT/DELETE /events/:id n'existent
+ * pas encore : aucune action d'edition ou de suppression ici.
  */
-const route = useRoute()
 const eventStore = useEventStore()
+const authStore = useAuthStore()
 
-const filters = ref({ search: '', category: '', onlyFull: false })
+const search = ref('')
+const showCreateModal = ref(false)
 
-/**
- * Le mode administration est activé par la route /dashboard/events
- * ou par le paramètre de requête ?admin=1.
- */
-function isAdmin() {
-  return route.path.startsWith('/dashboard') || route.query.admin === '1'
-}
-
-onMounted(async () => {
-  await eventStore.fetchEvents()
+onMounted(() => {
+  eventStore.fetchEvents({ page: 1 })
 })
 
 async function handleFilter(value) {
-  filters.value = { ...value }
-  await eventStore.fetchEvents({
-    search: filters.value.search,
-    category: filters.value.category,
-    onlyFull: filters.value.onlyFull
-  })
+  search.value = value
+  await eventStore.fetchEvents({ page: 1, search: value })
 }
 
-/**
- * Crée un événement : le payload contient exactement les champs
- * attendus par le backend (name, eventDate, venue, maxCapacity).
- */
+async function goToPage(page) {
+  await eventStore.fetchEvents({ page, search: search.value })
+}
+
 async function handleCreate(payload) {
-  await eventStore.addEvent(payload)
-  await eventStore.fetchEvents({
-    search: filters.value.search,
-    category: filters.value.category,
-    onlyFull: filters.value.onlyFull
-  })
-}
-
-async function handleDelete(id) {
-  await eventStore.removeEvent(id)
-  if (!eventStore.error) {
-    await eventStore.fetchEvents({
-      search: filters.value.search,
-      category: filters.value.category,
-      onlyFull: filters.value.onlyFull
-    })
+  try {
+    await eventStore.addEvent(payload)
+    showCreateModal.value = false
+    toast.success('Evenement cree avec succes', { description: payload.title })
+    await eventStore.fetchEvents({ page: 1, search: search.value })
+  } catch {
+    toast.error(eventStore.error || "La creation de l'evenement a echoue.")
   }
 }
 </script>
 
 <template>
-  <div class="events">
-    <div class="page-header">
-      <h1>Événements</h1>
-      <p class="page-subtitle">
-        Découvrez les événements à venir et inscrivez-vous en quelques clics.
-      </p>
-    </div>
-
-    <ErrorMessage
-      v-if="eventStore.error"
-      :message="eventStore.error"
-    />
-
-    <AppButton
-      v-if="eventStore.success"
-      variant="primary"
+  <div class="flex flex-col gap-6">
+    <section
+      v-motion
+      :initial="{ opacity: 0, y: 12 }"
+      :enter="{ opacity: 1, y: 0 }"
+      class="flex flex-wrap items-start justify-between gap-4"
     >
-      {{ eventStore.success }}
-    </AppButton>
+      <div>
+        <h1 class="text-2xl font-semibold text-slate-900">Evenements</h1>
+        <p class="mt-1 text-slate-500">
+          Decouvrez les conferences, ateliers et seminaires a venir.
+        </p>
+      </div>
+      <AppButton v-if="authStore.isAuthenticated" @click="showCreateModal = true">
+        <Plus class="h-4 w-4" aria-hidden="true" />
+        Creer un evenement
+      </AppButton>
+    </section>
 
-    <EventFilter
-      :categories="eventStore.categories"
-      :current-filters="filters"
-      @filter="handleFilter"
-    />
+    <EventFilter @filter="handleFilter" />
+
+    <ErrorMessage v-if="eventStore.error" :message="eventStore.error" />
 
     <LoadingSpinner v-if="eventStore.loading" />
 
-    <EventList
-      v-else
-      :events="eventStore.events"
-      :loading="eventStore.loading"
-      :admin="isAdmin()"
-      @create-event="handleCreate"
-      @delete-event="handleDelete"
-      @retry="eventStore.fetchEvents()"
-    />
+    <template v-else>
+      <EventList :events="eventStore.events" />
+
+      <div
+        v-if="eventStore.pagination.totalPages > 1"
+        class="flex items-center justify-center gap-3"
+      >
+        <AppButton
+          variant="ghost"
+          size="sm"
+          :disabled="eventStore.pagination.page <= 1"
+          @click="goToPage(eventStore.pagination.page - 1)"
+        >
+          Precedent
+        </AppButton>
+        <span class="text-sm text-slate-500">
+          Page {{ eventStore.pagination.page }} sur {{ eventStore.pagination.totalPages }}
+        </span>
+        <AppButton
+          variant="ghost"
+          size="sm"
+          :disabled="eventStore.pagination.page >= eventStore.pagination.totalPages"
+          @click="goToPage(eventStore.pagination.page + 1)"
+        >
+          Suivant
+        </AppButton>
+      </div>
+    </template>
+
+    <AppModal
+      :open="showCreateModal"
+      title="Creer un evenement"
+      @close="showCreateModal = false"
+    >
+      <EventForm @submit="handleCreate" @cancel="showCreateModal = false" />
+    </AppModal>
   </div>
 </template>
-
-<style scoped>
-.page-header {
-  margin-bottom: var(--space-6);
-}
-
-h1 {
-  font-size: var(--font-size-2xl);
-  color: var(--color-ink);
-  margin-bottom: var(--space-1);
-}
-
-.page-subtitle {
-  color: var(--color-text-secondary);
-}
-
-.note {
-  font-size: var(--font-size-sm);
-  font-style: italic;
-  color: var(--color-text-muted);
-}
-</style>
