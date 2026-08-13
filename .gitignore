@@ -71,3 +71,4 @@ rapport/*.fdb_latexmk
 # skills Claude Code, liens symboliques locaux vers ~/.claude/skills/
 # non versionnés : les chemins absolus ne résoudraient pas chez les autres membres
 .claude/skills/
+.claude/worktrees/

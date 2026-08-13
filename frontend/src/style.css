@@ -1,1 +1,38 @@
 @import "tailwindcss";
+
+@theme {
+  /* Palette EventHub : sarcelle profond + terracotta, choisie pour ce
+     projet (AGENTS.md section 6 : pas de degrade violet/bleu generique). */
+  --color-brand-50: #f0f9f8;
+  --color-brand-100: #d9efec;
+  --color-brand-200: #b3dfda;
+  --color-brand-300: #82c8c0;
+  --color-brand-400: #4fa89f;
+  --color-brand-500: #2f8880;
+  --color-brand-600: #216d66;
+  --color-brand-700: #1b5852;
+  --color-brand-800: #184643;
+  --color-brand-900: #163b39;
+  --color-brand-950: #08201f;
+
+  --color-accent-50: #fdf5ef;
+  --color-accent-100: #fbe6d4;
+  --color-accent-200: #f6caa8;
+  --color-accent-300: #f0a771;
+  --color-accent-400: #e9843f;
+  --color-accent-500: #d9661f;
+  --color-accent-600: #b74e16;
+  --color-accent-700: #8f3b14;
+  --color-accent-800: #6f3016;
+  --color-accent-900: #5c2914;
+
+  --font-sans: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-sans);
+}
