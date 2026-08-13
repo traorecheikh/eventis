@@ -1,12 +1,18 @@
 {
   "name": "frontend",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.1.0",
   "type": "module",
+  "description": "Frontend Vue 3 de l'application EventHub (gestion d'evenements)",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "lint": "eslint src tests",
+    "lint:fix": "eslint src tests --fix",
     "generate:api:specs": "npm run docs:generate --prefix ../auth-service && npm run docs:generate --prefix ../event-service && npm run docs:generate --prefix ../participants-service && npm run docs:generate --prefix ../registrations-service",
     "generate:api": "npm run generate:api:specs && orval"
   },
@@ -14,7 +20,7 @@
     "@tailwindcss/vite": "^4.3.3",
     "@vueuse/core": "^14.4.0",
     "@vueuse/motion": "^3.0.3",
-    "axios": "^1.19.0",
+    "axios": "^1.7.9",
     "lucide-vue-next": "^1.0.0",
     "pinia": "^2.3.1",
     "reka-ui": "^2.10.1",
@@ -24,8 +30,19 @@
     "vue-sonner": "^2.0.9"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.62.1",
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/vue": "^8.1.0",
     "@vitejs/plugin-vue": "^6.0.8",
+    "@vue/test-utils": "^2.4.11",
+    "eslint": "^10.8.1",
+    "eslint-plugin-vue": "^10.10.0",
+    "globals": "^17.9.0",
+    "happy-dom": "^20.11.2",
     "orval": "^8.24.0",
-    "vite": "^8.2.0"
+    "vite": "^8.2.0",
+    "vitest": "^4.1.10",
+    "vue-eslint-parser": "^10.4.1"
   }
 }

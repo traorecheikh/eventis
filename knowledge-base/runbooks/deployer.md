@@ -49,6 +49,49 @@ docker compose up -d
 docker compose ps
 ```
 
+## Si la PR develop -> main affiche des conflits alors que le contenu est identique
+
+Symptôme : la PR `develop` -> `main` affiche `mergeable: CONFLICTING` sur des
+dizaines de fichiers sans rapport avec un travail en cours. Cause : un sync
+précédent a été fait en écrasant l'arbre de `main` avec le contenu de
+`develop` dans un commit sans second parent réel (`git merge -s ours` mal
+utilisé, ou copie manuelle des fichiers suivie d'un commit simple). Le tip de
+`main` n'est alors plus un ancêtre de `develop`, et `git merge-base` retombe
+sur un point très ancien à chaque nouvelle comparaison : Git croit voir des
+conflits massifs alors que le contenu est strictement identique.
+
+Vérifier la cause avant de corriger :
+
+```bash
+git fetch origin
+git merge-base --is-ancestor origin/main origin/develop && echo OK || echo CASSE
+```
+
+Si `CASSE`, corriger avec un vrai commit de fusion à deux parents (contenu de
+`develop`, mais parenté réelle avec l'ancien tip de `main`) :
+
+```bash
+git checkout -b sync/main-develop origin/main
+git merge -s ours --no-edit origin/develop   # commit de fusion, 2 parents, arbre = ancien main
+git checkout origin/develop -- .              # ecrase l'arbre avec celui de develop
+git add -A
+git commit --amend --no-edit                  # meme commit de fusion, arbre = develop, 2 parents inchanges
+git diff HEAD origin/develop                  # doit etre vide : preuve que l'arbre est identique
+git log -1 --format='%p'                      # doit lister 2 hash : ancien tip main + tip develop
+git push -u origin sync/main-develop
+```
+
+Ouvrir une PR de cette branche vers `main`, vérifier `mergeable: MERGEABLE`
+avant de merger.
+
+**Ne jamais refaire un sync par écrasement simple** (`rm -rf` puis copier les
+fichiers de `develop` dans une branche fraîche suivie d'un commit à un seul
+parent) : ça règle le symptôme une fois mais recasse la parenté pour la
+prochaine fois. Toujours passer par le patron ci-dessus, qui préserve un vrai
+lien d'ancêtre entre `main` et `develop`. Une fois ce lien rétabli, les syncs
+suivants (merge normal sans conflit, ou même patron si `develop` a de nouveau
+divergé pour une autre raison) restent propres.
+
 ## Ce qu'il ne faut pas faire
 
 - Ne jamais modifier un fichier directement sur le VPS. Le prochain déploiement
